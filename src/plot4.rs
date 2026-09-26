@@ -9,21 +9,21 @@ pub fn show(state_log: &Vec<SimulationState>, ui: &mut egui::Ui) {
     .width(625.0)
     .height(350.0)
     .show(ui, |plot_ui| {
-        plot_ui.line(egui_plot::Line::new("wb (x, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.x.to_degrees() as f64]))));
-        plot_ui.line(egui_plot::Line::new("wb (y, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.y.to_degrees() as f64]))));
-        plot_ui.line(egui_plot::Line::new("wb (z, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.z.to_degrees() as f64]))));
+        // plot_ui.line(egui_plot::Line::new("wb (x, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.x.to_degrees() as f64]))));
+        // plot_ui.line(egui_plot::Line::new("wb (y, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.y.to_degrees() as f64]))));
+        // plot_ui.line(egui_plot::Line::new("wb (z, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.z.to_degrees() as f64]))));
         
-        plot_ui.line(egui_plot::Line::new("eul_rate (x, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul_rate.x.to_degrees() as f64]))));
-        plot_ui.line(egui_plot::Line::new("eul_rate (y, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul_rate.y.to_degrees() as f64]))));
-        plot_ui.line(egui_plot::Line::new("eul_rate (z, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul_rate.z.to_degrees() as f64]))));
+        // plot_ui.line(egui_plot::Line::new("eul_rate (x, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul_rate.x.to_degrees() as f64]))));
+        // plot_ui.line(egui_plot::Line::new("eul_rate (y, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul_rate.y.to_degrees() as f64]))));
+        // plot_ui.line(egui_plot::Line::new("eul_rate (z, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul_rate.z.to_degrees() as f64]))));
 
-        // plot_ui.line(egui_plot::Line::new("eul (r, deg)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul.x.to_degrees() as f64]))));
-        // plot_ui.line(egui_plot::Line::new("eul (p, deg)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul.y.to_degrees() as f64]))));
-        // plot_ui.line(egui_plot::Line::new("eul (y, deg)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul.z.to_degrees() as f64]))));
-
-        // plot_ui.line(egui_plot::Line::new("fb (x, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.x as f64]))));
-        // plot_ui.line(egui_plot::Line::new("fb (y, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.y as f64]))));
-        // plot_ui.line(egui_plot::Line::new("fb (z, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.z as f64]))));
+        // plot_ui.line(egui_plot::Line::new("fb (x, lb)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.x * 0.2248 as f64]))));
+        // plot_ui.line(egui_plot::Line::new("fb (y, lb)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.y * 0.2248 as f64]))));
+        // plot_ui.line(egui_plot::Line::new("fb (z, lb)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.z * 0.2248 as f64]))));
+        
+        plot_ui.line(egui_plot::Line::new("control alpha (rad/s^2)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_a_desired as f64]))));
+        plot_ui.line(egui_plot::Line::new("control m factor (rad/s^2)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_m_factor as f64]))));
+        plot_ui.line(egui_plot::Line::new("control angle (deg)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_angle as f64]))));
         
         // plot_ui.line(egui_plot::Line::new("mb (x, Nm)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).mb.x as f64]))));
         // plot_ui.line(egui_plot::Line::new("mb (y, Nm)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).mb.y as f64]))));
@@ -31,6 +31,8 @@ pub fn show(state_log: &Vec<SimulationState>, ui: &mut egui::Ui) {
         
         // plot_ui.line(egui_plot::Line::new("incidence (deg)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).incidence.to_degrees() as f64]))));
         // plot_ui.line(egui_plot::Line::new("sideslip (deg)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).sideslip.to_degrees() as f64]))));
+
+        // plot_ui.line(egui_plot::Line::new("mach", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).mach as f64]))));
 
         // plot_ui.line(egui_plot::Line::new("fb (motor, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb_thrust.x as f64]))));
         
