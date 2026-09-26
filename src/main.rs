@@ -38,7 +38,9 @@ struct ConfigurationState {
     launch_angle: f64,
     launch_heading: f64,
     control_alg_p: f64,
-    control_alg_d: f64
+    control_alg_d: f64,
+    control_roll_start: f64,
+    control_roll_target: f64
 }
 
 #[derive(Clone)]
@@ -203,6 +205,8 @@ fn integrate_quaternion_from_body_rates(wb: Vector3<f64>, q: Vector4<f64>, dt: f
 /* -------------------------------------------------------------------------- */
 //
 fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<DataExportAnalysis>, state_log: &mut Vec<SimulationState>, config: &ConfigurationState) {
+    state_log.clear();
+
     /* -------------------------------------------------------------------------- */
     /*                                   Config                                   */
     /* -------------------------------------------------------------------------- */
@@ -225,14 +229,14 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         dcm_eb: Matrix3::identity(), 
         eul: Vector3::new(
             f64::to_radians(0.0), 
-            -f64::cos(config.launch_heading) * config.launch_angle, 
-            f64::sin(config.launch_heading) * config.launch_angle
+            -f64::cos(config.launch_heading.to_radians()) * config.launch_angle.to_radians(), 
+            f64::sin(config.launch_heading.to_radians()) * config.launch_angle.to_radians()
         ),
         eul_rate: Vector3::new(0.0, 0.0, 0.0),
         q: euler_to_quaternion(Vector3::new(
             f64::to_radians(0.0), 
-            -f64::cos(config.launch_heading) * config.launch_angle, 
-            f64::sin(config.launch_heading) * config.launch_angle
+            -f64::cos(config.launch_heading.to_radians()) * config.launch_angle.to_radians(), 
+            f64::sin(config.launch_heading.to_radians()) * config.launch_angle.to_radians()
         )),
         i: Matrix3::identity(),
         m: 1.0,
@@ -251,9 +255,9 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         l_ref: 0.0,
         control_alg_m_factor: 0.0,
         control_alg_a_desired: 0.0,
-        control_alg_angle: 0.0
+        control_alg_angle: 0.0,
     };
-    
+
     /* -------------------------------------------------------------------------- */
     /*                                  Main Loop                                 */
     /* -------------------------------------------------------------------------- */
@@ -293,13 +297,17 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         state.cp = data_analysis_last.cp;
 
         /* --------------------------- Force/Moment Determination -------------------------- */
+        // Determine roll target.
+        let roll_target = if state.t > config.control_roll_start { config.control_roll_target.to_radians() } else { 0.0 };
+
         // Calculate control delection.
+        // Zeroed after apogee.
         // TODO Model discrepancy between regression and true values.
         let cma_c1: f64 = 3.224098 / 5.0 * f64::powf(10.0, -2.0);
         let cma_c2: f64 = 3.165564 / 5.0 * f64::powf(10.0, -2.0);
         let cma_c3: f64 = 8.027749 / 5.0 * f64::powf(10.0, -3.0);
         state.control_alg_m_factor = cma_c1*state.mach*state.mach*state.mach + cma_c2*state.mach*state.mach + cma_c3*state.mach;
-        state.control_alg_a_desired = config.control_alg_p * state.eul.x + config.control_alg_d * state.eul_rate.x;
+        state.control_alg_a_desired = config.control_alg_p * (state.eul.x - roll_target) + config.control_alg_d * state.eul_rate.x;
         let control_alg_m_desired: f64 = state.control_alg_a_desired * state.i.m11;
         if state.mach > 0.05 { state.control_alg_angle = f64::clamp(control_alg_m_desired / state.control_alg_m_factor, -15.0, 15.0); }
         else { state.control_alg_angle = 0.0; }
@@ -319,8 +327,10 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         state.eul_rate = body_rate_to_euler_rate(state.wb, state.eul);
 
         // Vehicle aero forces and moments.
+        // Drag always considered, CNa only considered if before apogee.
         (state.incidence, state.sideslip) = aero_angles_from_vb(state.vb);
-        state.fb_airframe = (-0.5*state.air_rho*state.vb.magnitude_squared()*state.a_ref*state.cna) * Vector3::new(0.0, state.sideslip, state.incidence);
+        state.fb_airframe = Vector3::new(0.0, 0.0, 0.0);
+        state.fb_airframe += (-0.5*state.air_rho*state.vb.magnitude_squared()*state.a_ref*state.cna) * Vector3::new(0.0, state.sideslip, state.incidence);
         state.fb_airframe += (-0.5*state.air_rho*state.vb.magnitude_squared()*state.a_ref*state.cd) * state.vb.normalize();
         state.mb_airframe = Vector3::new(state.cg - state.cp, 0.0, 0.0).cross(&state.fb_airframe);
 
@@ -364,7 +374,6 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
 
         // Simulation stop condition.
         if state.ve.x < -1.0 { loop_exit = true; }
-        if state.t > 30.0 { loop_exit = true; }
 
         // Save state for future viewing.
         state_log.push(state.clone());
@@ -413,10 +422,12 @@ fn main() -> eframe::Result {
     let mut state_log: Vec<SimulationState> = vec![];
     let mut config: ConfigurationState = ConfigurationState { 
         rail_length: 3.0, 
-        launch_angle: (5_f64).to_radians(), 
-        launch_heading: (5_f64).to_radians(), 
+        launch_angle: 5.0,
+        launch_heading: 45.0,
         control_alg_p: -5.0,
-        control_alg_d: -5.0
+        control_alg_d: -5.0,
+        control_roll_start: 3.0,
+        control_roll_target: 90.0
     };
     simulate(&data_simulation, &data_analysis, &mut state_log, &mut config);
 
@@ -432,10 +443,31 @@ fn main() -> eframe::Result {
     eframe::run_simple_native("dof_rs", options, move |ctx, _frame| {
         egui::CentralPanel::default()
         .show(ctx, |ui| {
-            // ui.horizontal(|ui| {
-            //     ui.label("P Gain");
-            //     ui.add(egui::widgets::DragValue::new(&config.control_alg_p));
-            // })
+            ui.horizontal(|ui| {
+                ui.label("(P, D) Gains");
+                if
+                    ui.add(egui::widgets::DragValue::new(&mut config.control_alg_p).speed(0.05)).changed() ||
+                    ui.add(egui::widgets::DragValue::new(&mut config.control_alg_d).speed(0.05)).changed()
+                {
+                    simulate(&data_simulation, &data_analysis, &mut state_log, &config);
+                }
+                ui.separator();
+                ui.label("(Time, Amount) Roll Program");
+                if
+                    ui.add(egui::widgets::DragValue::new(&mut config.control_roll_start).speed(0.05)).changed() ||
+                    ui.add(egui::widgets::DragValue::new(&mut config.control_roll_target).speed(0.25)).changed()
+                {
+                    simulate(&data_simulation, &data_analysis, &mut state_log, &config);
+                }
+                ui.separator();
+                ui.label("(Pitch, Bearing) Launch Angles");
+                if
+                    ui.add(egui::widgets::DragValue::new(&mut config.launch_angle).speed(0.05)).changed() ||
+                    ui.add(egui::widgets::DragValue::new(&mut config.launch_heading).speed(0.25)).changed()
+                {
+                    simulate(&data_simulation, &data_analysis, &mut state_log, &config);
+                }
+            });
             ui.horizontal(|ui| {
                 plot1::show(&state_log, ui);
                 plot2::show(&state_log, ui);

@@ -21,8 +21,8 @@ pub fn show(state_log: &Vec<SimulationState>, ui: &mut egui::Ui) {
         // plot_ui.line(egui_plot::Line::new("fb (y, lb)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.y * 0.2248 as f64]))));
         // plot_ui.line(egui_plot::Line::new("fb (z, lb)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.z * 0.2248 as f64]))));
         
-        plot_ui.line(egui_plot::Line::new("control alpha (rad/s^2)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_a_desired as f64]))));
-        plot_ui.line(egui_plot::Line::new("control m factor (rad/s^2)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_m_factor as f64]))));
+        // plot_ui.line(egui_plot::Line::new("control alpha (rad/s^2)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_a_desired as f64]))));
+        // plot_ui.line(egui_plot::Line::new("control m factor (rad/s^2)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_m_factor as f64]))));
         plot_ui.line(egui_plot::Line::new("control angle (deg)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_angle as f64]))));
         
         // plot_ui.line(egui_plot::Line::new("mb (x, Nm)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).mb.x as f64]))));
