@@ -22,7 +22,7 @@ struct DataExportSimulation {
     thrust: f64,
 
     l_ref: f64,
-    a_ref: f64,
+    _a_ref: f64,
 }
 #[derive(Clone)]
 struct DataExportAnalysis {
@@ -34,19 +34,20 @@ struct DataExportAnalysis {
 
 #[derive(Clone)]
 struct ConfigurationState {
+    dt: f64,
     rail_length: f64,
     launch_angle: f64,
     launch_heading: f64,
     control_alg_p: f64,
     control_alg_d: f64,
     control_roll_start: f64,
-    control_roll_target: f64
+    control_roll_target: f64,
+    control_slew_rate: f64,
 }
 
 #[derive(Clone)]
 struct SimulationState {
     t: f64,
-    dt: f64,
     
     xe: Vector3<f64>,
     ve: Vector3<f64>,
@@ -93,7 +94,8 @@ struct SimulationState {
 
     control_alg_m_factor: f64,
     control_alg_a_desired: f64,
-    control_alg_angle: f64
+    control_alg_angle_target: f64,
+    control_alg_angle_true: f64
 }
 
 
@@ -212,7 +214,6 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
     /* -------------------------------------------------------------------------- */
     let mut state: SimulationState = SimulationState { 
         t: 0.0, 
-        dt: 0.01,
         xe: Vector3::new(0.0, 0.0, 0.0), 
         ve: Vector3::new(0.0, 0.0, 0.0), 
         ae: Vector3::new(0.0, 0.0, 0.0),
@@ -255,7 +256,8 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         l_ref: 0.0,
         control_alg_m_factor: 0.0,
         control_alg_a_desired: 0.0,
-        control_alg_angle: 0.0,
+        control_alg_angle_target: 0.0,
+        control_alg_angle_true: 0.0,
     };
 
     /* -------------------------------------------------------------------------- */
@@ -279,7 +281,7 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         );
         state.cg = data_simulation_last.cg;
         state.fb_thrust = Vector3::new(data_simulation_last.thrust, 0.0, 0.0);
-        state.a_ref = data_simulation_last.a_ref;
+        state.a_ref = 3.14159265359 * f64::powi(data_simulation_last.l_ref / 2.0,2);
         state.l_ref = data_simulation_last.l_ref;
 
         // Find last relevant analysis data point.
@@ -309,13 +311,30 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         state.control_alg_m_factor = cma_c1*state.mach*state.mach*state.mach + cma_c2*state.mach*state.mach + cma_c3*state.mach;
         state.control_alg_a_desired = config.control_alg_p * (state.eul.x - roll_target) + config.control_alg_d * state.eul_rate.x;
         let control_alg_m_desired: f64 = state.control_alg_a_desired * state.i.m11;
-        if state.mach > 0.05 { state.control_alg_angle = f64::clamp(control_alg_m_desired / state.control_alg_m_factor, -15.0, 15.0); }
-        else { state.control_alg_angle = 0.0; }
+        if state.mach > 0.05 { 
+            // Angle determination.
+            state.control_alg_angle_target = control_alg_m_desired / state.control_alg_m_factor;
+
+            // Servo dynamics.
+            let slew_target: f64 = state.control_alg_angle_target.clamp(-15.0, 15.0).round();
+            let slew_target_offset: f64 = state.control_alg_angle_true - slew_target;
+            if f64::abs(slew_target_offset) < config.control_slew_rate * config.dt {
+                state.control_alg_angle_true = slew_target;
+            } else {
+                if slew_target_offset > 0.0 { state.control_alg_angle_true -= config.control_slew_rate * config.dt; }
+                else { state.control_alg_angle_true += config.control_slew_rate * config.dt; }
+            }
+        }
+        else { 
+            // TODO slightly wrong.
+            state.control_alg_angle_target = 0.0; 
+            state.control_alg_angle_true = 0.0; 
+        }
         
         // Calculate applied moment and force from control deflection.
         // Normal force is negligible for a single small canard, looking only at moment.
         state.fb_controls = Vector3::new(0.0, 0.0, 0.0);
-        state.mb_controls = Vector3::new(state.control_alg_angle * state.control_alg_m_factor, 0.0, 0.0);
+        state.mb_controls = Vector3::new(state.control_alg_angle_true * state.control_alg_m_factor, 0.0, 0.0);
 
         // Calculate DCMbe and DCMeb from rotation.
         state.dcm_be = quaternion_to_dcm_be(state.q);
@@ -352,8 +371,8 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
 
         /* ------------------------------- Integration ------------------------------ */
         // Integrate new rotation from moments.
-        state.wb = integrate_body_rates_from_moment(state.i, state.wb, state.mb, state.dt);
-        state.q = integrate_quaternion_from_body_rates(state.wb, state.q, state.dt);
+        state.wb = integrate_body_rates_from_moment(state.i, state.wb, state.mb, config.dt);
+        state.q = integrate_quaternion_from_body_rates(state.wb, state.q, config.dt);
 
         // Gravity is calculated in earth axes, transformed to body axes where
         // if on the rail y and z axes are constrained, and then transformed back to earth axes.
@@ -368,18 +387,19 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         // Integrate acceleration to position and velocity.
         state.ab = state.fb / state.m;
         state.ae = state.dcm_eb * state.ab;
-        state.ve += state.ae*state.dt;
-        state.ve += grav*state.dt;
-        state.xe += state.ve*state.dt;
+        state.ve += state.ae*config.dt;
+        state.ve += grav*config.dt;
+        state.xe += state.ve*config.dt;
 
         // Simulation stop condition.
         if state.ve.x < -1.0 { loop_exit = true; }
+        if state.t > 30.0 { loop_exit = true; }
 
         // Save state for future viewing.
         state_log.push(state.clone());
 
         // Step time.
-        state.t += state.dt;
+        state.t += config.dt;
     }
 } 
 
@@ -403,7 +423,7 @@ fn main() -> eframe::Result {
             cg: words[27].parse::<f64>().unwrap() * 0.0254, 
             thrust: words[29].parse::<f64>().unwrap(), 
             l_ref: words[53].parse::<f64>().unwrap() * 0.0254,
-            a_ref: words[54].parse::<f64>().unwrap() * 0.00064516
+            _a_ref: words[54].parse::<f64>().unwrap() * 0.00064516
         });
     }
     for line in file_analysis.lines().collect::<Vec<&str>>() {
@@ -421,13 +441,15 @@ fn main() -> eframe::Result {
     /* -------------------------------------------------------------------------- */
     let mut state_log: Vec<SimulationState> = vec![];
     let mut config: ConfigurationState = ConfigurationState { 
+        dt: 0.01,
         rail_length: 3.0, 
         launch_angle: 5.0,
-        launch_heading: 45.0,
-        control_alg_p: -5.0,
-        control_alg_d: -5.0,
+        launch_heading: 30.0,
+        control_alg_p: -50.0,
+        control_alg_d: -20.0,
         control_roll_start: 3.0,
-        control_roll_target: 90.0
+        control_roll_target: 90.0,
+        control_slew_rate: 500.0
     };
     simulate(&data_simulation, &data_analysis, &mut state_log, &mut config);
 
@@ -452,7 +474,14 @@ fn main() -> eframe::Result {
                     simulate(&data_simulation, &data_analysis, &mut state_log, &config);
                 }
                 ui.separator();
-                ui.label("(Time, Amount) Roll Program");
+                ui.label("(dps) Control Slew Rate");
+                if
+                    ui.add(egui::widgets::DragValue::new(&mut config.control_slew_rate).speed(5.0)).changed()
+                {
+                    simulate(&data_simulation, &data_analysis, &mut state_log, &config);
+                }
+                ui.separator();
+                ui.label("(Time, Degrees) Roll Program");
                 if
                     ui.add(egui::widgets::DragValue::new(&mut config.control_roll_start).speed(0.05)).changed() ||
                     ui.add(egui::widgets::DragValue::new(&mut config.control_roll_target).speed(0.25)).changed()
@@ -460,7 +489,7 @@ fn main() -> eframe::Result {
                     simulate(&data_simulation, &data_analysis, &mut state_log, &config);
                 }
                 ui.separator();
-                ui.label("(Pitch, Bearing) Launch Angles");
+                ui.label("(Pitch deg, Bearing deg) Launch Angles");
                 if
                     ui.add(egui::widgets::DragValue::new(&mut config.launch_angle).speed(0.05)).changed() ||
                     ui.add(egui::widgets::DragValue::new(&mut config.launch_heading).speed(0.25)).changed()
