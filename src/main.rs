@@ -34,7 +34,7 @@ struct DataExportAnalysis {
 
 #[derive(Clone)]
 struct ConfigurationState {
-    dt: f64,
+    dt_ascent: f64,
     rail_length: f64,
     launch_angle: f64,
     launch_heading: f64,
@@ -302,33 +302,30 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         // Determine roll target.
         let roll_target = if state.t > config.control_roll_start { config.control_roll_target.to_radians() } else { 0.0 };
 
-        // Calculate control delection.
-        // Zeroed after apogee.
-        // TODO Model discrepancy between regression and true values.
-        let cma_c1: f64 = 3.224098 / 5.0 * f64::powf(10.0, -2.0);
-        let cma_c2: f64 = 3.165564 / 5.0 * f64::powf(10.0, -2.0);
-        let cma_c3: f64 = 8.027749 / 5.0 * f64::powf(10.0, -3.0);
-        state.control_alg_m_factor = cma_c1*state.mach*state.mach*state.mach + cma_c2*state.mach*state.mach + cma_c3*state.mach;
+        // Desired control moment.
         state.control_alg_a_desired = config.control_alg_p * (state.eul.x - roll_target) + config.control_alg_d * state.eul_rate.x;
         let control_alg_m_desired: f64 = state.control_alg_a_desired * state.i.m11;
-        if state.mach > 0.05 { 
-            // Angle determination.
-            state.control_alg_angle_target = control_alg_m_desired / state.control_alg_m_factor;
 
-            // Servo dynamics.
-            let slew_target: f64 = state.control_alg_angle_target.clamp(-15.0, 15.0).round();
-            let slew_target_offset: f64 = state.control_alg_angle_true - slew_target;
-            if f64::abs(slew_target_offset) < config.control_slew_rate * config.dt {
-                state.control_alg_angle_true = slew_target;
-            } else {
-                if slew_target_offset > 0.0 { state.control_alg_angle_true -= config.control_slew_rate * config.dt; }
-                else { state.control_alg_angle_true += config.control_slew_rate * config.dt; }
-            }
-        }
-        else { 
-            // TODO slightly wrong.
-            state.control_alg_angle_target = 0.0; 
-            state.control_alg_angle_true = 0.0; 
+        // Determine a value m_factor such that m_factor * angle gives the moment applied.
+        // This is mostly dependent on the mach number and air density.
+        // TODO Waiting on CFD.
+        let _cma_c1: f64 = 3.224098 / 5.0 * f64::powf(10.0, -2.0);
+        let _cma_c2: f64 = 3.165564 / 5.0 * f64::powf(10.0, -2.0);
+        let _cma_c3: f64 = 8.027749 / 5.0 * f64::powf(10.0, -3.0);
+        state.control_alg_m_factor = 0.00499260857009 * state.mach * state.mach;
+
+        // Determine angle from CMa.
+        if state.mach > 0.05 { state.control_alg_angle_target = control_alg_m_desired / state.control_alg_m_factor; }
+        else { state.control_alg_angle_target = 0.0; }
+
+        // Simulate servo slew rate towards target angle.
+        let slew_target: f64 = state.control_alg_angle_target.clamp(-15.0, 15.0).round();
+        let slew_target_offset: f64 = state.control_alg_angle_true - slew_target;
+        if f64::abs(slew_target_offset) < config.control_slew_rate * config.dt_ascent {
+            state.control_alg_angle_true = slew_target;
+        } else {
+            if slew_target_offset > 0.0 { state.control_alg_angle_true -= config.control_slew_rate * config.dt_ascent; }
+            else { state.control_alg_angle_true += config.control_slew_rate * config.dt_ascent; }
         }
         
         // Calculate applied moment and force from control deflection.
@@ -371,8 +368,8 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
 
         /* ------------------------------- Integration ------------------------------ */
         // Integrate new rotation from moments.
-        state.wb = integrate_body_rates_from_moment(state.i, state.wb, state.mb, config.dt);
-        state.q = integrate_quaternion_from_body_rates(state.wb, state.q, config.dt);
+        state.wb = integrate_body_rates_from_moment(state.i, state.wb, state.mb, config.dt_ascent);
+        state.q = integrate_quaternion_from_body_rates(state.wb, state.q, config.dt_ascent);
 
         // Gravity is calculated in earth axes, transformed to body axes where
         // if on the rail y and z axes are constrained, and then transformed back to earth axes.
@@ -387,9 +384,9 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         // Integrate acceleration to position and velocity.
         state.ab = state.fb / state.m;
         state.ae = state.dcm_eb * state.ab;
-        state.ve += state.ae*config.dt;
-        state.ve += grav*config.dt;
-        state.xe += state.ve*config.dt;
+        state.ve += state.ae*config.dt_ascent;
+        state.ve += grav*config.dt_ascent;
+        state.xe += state.ve*config.dt_ascent;
 
         // Simulation stop condition.
         if state.ve.x < -1.0 { loop_exit = true; }
@@ -399,7 +396,7 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         state_log.push(state.clone());
 
         // Step time.
-        state.t += config.dt;
+        state.t += config.dt_ascent;
     }
 } 
 
@@ -441,7 +438,7 @@ fn main() -> eframe::Result {
     /* -------------------------------------------------------------------------- */
     let mut state_log: Vec<SimulationState> = vec![];
     let mut config: ConfigurationState = ConfigurationState { 
-        dt: 0.01,
+        dt_ascent: 0.02,
         rail_length: 3.0, 
         launch_angle: 5.0,
         launch_heading: 30.0,
