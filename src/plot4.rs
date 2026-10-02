@@ -7,11 +7,14 @@ pub fn show(state_log: &Vec<SimulationState>, ui: &mut egui::Ui) {
     .show_axes(true)
     .show_grid(true)
     .width(625.0)
-    .height(340.0)
+    .height(320.0)
+    .data_aspect(1.0)
     .show(ui, |plot_ui| {
         // plot_ui.line(egui_plot::Line::new("wb (x, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.x.to_degrees() as f64]))));
         // plot_ui.line(egui_plot::Line::new("wb (y, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.y.to_degrees() as f64]))));
         // plot_ui.line(egui_plot::Line::new("wb (z, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.z.to_degrees() as f64]))));
+        
+        // plot_ui.line(egui_plot::Line::new("ground track north vs east (ft)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).xe.y / 0.3048, (*d).xe.z / 0.3048]))));
         
         // plot_ui.line(egui_plot::Line::new("eul_rate (x, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul_rate.x.to_degrees() as f64]))));
         // plot_ui.line(egui_plot::Line::new("eul_rate (y, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul_rate.y.to_degrees() as f64]))));
@@ -22,7 +25,7 @@ pub fn show(state_log: &Vec<SimulationState>, ui: &mut egui::Ui) {
         // plot_ui.line(egui_plot::Line::new("fb (z, lb)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.z * 0.2248 as f64]))));
         
         // plot_ui.line(egui_plot::Line::new("control alpha (rad/s^2)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_a_desired as f64]))));
-        // plot_ui.line(egui_plot::Line::new("control m factor (rad/s^2)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_m_factor as f64]))));
+        plot_ui.line(egui_plot::Line::new("control m factor (rad/s^2)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_m_factor as f64]))));
         plot_ui.line(egui_plot::Line::new("control true deg", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_angle_true as f64]))));
         plot_ui.line(egui_plot::Line::new("control target deg", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).control_alg_angle_target as f64]))));
 

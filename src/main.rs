@@ -35,6 +35,14 @@ struct DataExportAnalysis {
 #[derive(Clone)]
 struct ConfigurationState {
     dt_ascent: f64,
+    dt_descent: f64,
+    cd_main: f64,
+    cd_drogue: f64,
+    diameter_main_in: f64,
+    diameter_drogue_in: f64,
+    altitude_main_ft    : f64,
+    wind_heading_deg: f64,
+    wind_velocity_mph: f64,
     rail_length: f64,
     launch_angle: f64,
     launch_heading: f64,
@@ -48,6 +56,7 @@ struct ConfigurationState {
 #[derive(Clone)]
 struct SimulationState {
     t: f64,
+    dt: f64,
     
     xe: Vector3<f64>,
     ve: Vector3<f64>,
@@ -214,6 +223,7 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
     /* -------------------------------------------------------------------------- */
     let mut state: SimulationState = SimulationState { 
         t: 0.0, 
+        dt: config.dt_ascent,
         xe: Vector3::new(0.0, 0.0, 0.0), 
         ve: Vector3::new(0.0, 0.0, 0.0), 
         ae: Vector3::new(0.0, 0.0, 0.0),
@@ -264,7 +274,13 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
     /*                                  Main Loop                                 */
     /* -------------------------------------------------------------------------- */
     let mut loop_exit: bool = false;
+    let mut apogee_reached: bool = false;
+    let mut main_deployed: bool = false;
     while !loop_exit {
+        // Timestep determined by flags.
+        if apogee_reached { state.dt = config.dt_descent; }
+        else { state.dt = config.dt_ascent; }
+
         /* ------------------ Find mass and aero values from refs. ------------------ */
         // Find last relevant simulation data point.
         let mut i = 0;
@@ -306,26 +322,26 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         state.control_alg_a_desired = config.control_alg_p * (state.eul.x - roll_target) + config.control_alg_d * state.eul_rate.x;
         let control_alg_m_desired: f64 = state.control_alg_a_desired * state.i.m11;
 
-        // Determine a value m_factor such that m_factor * angle gives the moment applied.
-        // This is mostly dependent on the mach number and air density.
-        // TODO Waiting on CFD.
-        let _cma_c1: f64 = 3.224098 / 5.0 * f64::powf(10.0, -2.0);
-        let _cma_c2: f64 = 3.165564 / 5.0 * f64::powf(10.0, -2.0);
-        let _cma_c3: f64 = 8.027749 / 5.0 * f64::powf(10.0, -3.0);
-        state.control_alg_m_factor = 0.00499260857009 * state.mach * state.mach;
+        // Determine a value cma from mach such that mfac * angle gives the moment applied at full atmospheric pressure.
+        // Then multiply this by pressure in atmospheres such that it gives moment applied accounting for altitude.
+        let cma_c1: f64 = -6.788666 * f64::powf(10.0, -4.0);
+        let cma_c2: f64 = 3.455015 * f64::powf(10.0, -2.0);
+        let cma_c3: f64 = -8.024854 * f64::powf(10.0, -3.0);
+        state.control_alg_m_factor = cma_c3 * state.mach.powi(3) + cma_c2 * state.mach.powi(2) + cma_c1 * state.mach;
+        // state.control_alg_m_factor *= state.air_rho / 101325.0;
 
         // Determine angle from CMa.
-        if state.mach > 0.05 { state.control_alg_angle_target = control_alg_m_desired / state.control_alg_m_factor; }
+        if state.mach > 0.01 { state.control_alg_angle_target = control_alg_m_desired / state.control_alg_m_factor; }
         else { state.control_alg_angle_target = 0.0; }
 
         // Simulate servo slew rate towards target angle.
         let slew_target: f64 = state.control_alg_angle_target.clamp(-15.0, 15.0).round();
         let slew_target_offset: f64 = state.control_alg_angle_true - slew_target;
-        if f64::abs(slew_target_offset) < config.control_slew_rate * config.dt_ascent {
+        if f64::abs(slew_target_offset) < config.control_slew_rate * state.dt {
             state.control_alg_angle_true = slew_target;
         } else {
-            if slew_target_offset > 0.0 { state.control_alg_angle_true -= config.control_slew_rate * config.dt_ascent; }
-            else { state.control_alg_angle_true += config.control_slew_rate * config.dt_ascent; }
+            if slew_target_offset > 0.0 { state.control_alg_angle_true -= config.control_slew_rate * state.dt; }
+            else { state.control_alg_angle_true += config.control_slew_rate * state.dt; }
         }
         
         // Calculate applied moment and force from control deflection.
@@ -343,11 +359,17 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         state.eul_rate = body_rate_to_euler_rate(state.wb, state.eul);
 
         // Vehicle aero forces and moments.
-        // Drag always considered, CNa only considered if before apogee.
-        (state.incidence, state.sideslip) = aero_angles_from_vb(state.vb);
+        // Airframe normal and drag forces only considered if before apogee.
+        // Drogue and main drag forces only considered if appropriate flag triggered.
+        //
+        // Wind is subtracted from vb to get airspeed rather than ground speed.
+        let wind_vb: Vector3<f64> = state.dcm_be * Vector3::new(0.0, config.wind_heading_deg.to_radians().sin(), config.wind_heading_deg.to_radians().cos()) * config.wind_velocity_mph * 0.44704;
+        (state.incidence, state.sideslip) = aero_angles_from_vb(state.vb - wind_vb);
         state.fb_airframe = Vector3::new(0.0, 0.0, 0.0);
-        state.fb_airframe += (-0.5*state.air_rho*state.vb.magnitude_squared()*state.a_ref*state.cna) * Vector3::new(0.0, state.sideslip, state.incidence);
-        state.fb_airframe += (-0.5*state.air_rho*state.vb.magnitude_squared()*state.a_ref*state.cd) * state.vb.normalize();
+        if !apogee_reached { state.fb_airframe += (-0.5*state.air_rho*(state.vb - wind_vb).magnitude_squared()*state.a_ref*state.cna) * Vector3::new(0.0, state.sideslip, state.incidence); }
+        if !apogee_reached { state.fb_airframe += (-0.5*state.air_rho*(state.vb - wind_vb).magnitude_squared()*state.a_ref*state.cd) * (state.vb - wind_vb).normalize(); }
+        if apogee_reached { state.fb_airframe += (-0.5*state.air_rho*(state.vb - wind_vb).magnitude_squared()*0.000506707479097*config.diameter_drogue_in*config.diameter_drogue_in*config.cd_drogue) * (state.vb - wind_vb).normalize(); }
+        if main_deployed { state.fb_airframe += (-0.5*state.air_rho*(state.vb - wind_vb).magnitude_squared()*0.000506707479097*config.diameter_main_in*config.diameter_main_in*config.cd_main) * (state.vb - wind_vb).normalize(); }
         state.mb_airframe = Vector3::new(state.cg - state.cp, 0.0, 0.0).cross(&state.fb_airframe);
 
         // Override to zero at low airspeeds to avoid NAN.
@@ -368,8 +390,11 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
 
         /* ------------------------------- Integration ------------------------------ */
         // Integrate new rotation from moments.
-        state.wb = integrate_body_rates_from_moment(state.i, state.wb, state.mb, config.dt_ascent);
-        state.q = integrate_quaternion_from_body_rates(state.wb, state.q, config.dt_ascent);
+        // Paused after apogee.
+        if !apogee_reached {
+            state.wb = integrate_body_rates_from_moment(state.i, state.wb, state.mb, state.dt);
+            state.q = integrate_quaternion_from_body_rates(state.wb, state.q, state.dt);
+        }
 
         // Gravity is calculated in earth axes, transformed to body axes where
         // if on the rail y and z axes are constrained, and then transformed back to earth axes.
@@ -384,19 +409,20 @@ fn simulate(data_simulation: &Vec<DataExportSimulation>, data_analysis: &Vec<Dat
         // Integrate acceleration to position and velocity.
         state.ab = state.fb / state.m;
         state.ae = state.dcm_eb * state.ab;
-        state.ve += state.ae*config.dt_ascent;
-        state.ve += grav*config.dt_ascent;
-        state.xe += state.ve*config.dt_ascent;
+        state.ve += state.ae*state.dt;
+        state.ve += grav*state.dt;
+        state.xe += state.ve*state.dt;
 
         // Simulation stop condition.
-        if state.ve.x < -1.0 { loop_exit = true; }
-        if state.t > 30.0 { loop_exit = true; }
+        if state.ve.x < -1.0 { apogee_reached = true; }
+        if apogee_reached && state.xe.x < config.altitude_main_ft * 0.3048 { main_deployed = true; }
+        if apogee_reached && state.xe.x < -1.0 { loop_exit = true; }
 
         // Save state for future viewing.
         state_log.push(state.clone());
 
         // Step time.
-        state.t += config.dt_ascent;
+        state.t += state.dt;
     }
 } 
 
@@ -439,6 +465,14 @@ fn main() -> eframe::Result {
     let mut state_log: Vec<SimulationState> = vec![];
     let mut config: ConfigurationState = ConfigurationState { 
         dt_ascent: 0.02,
+        dt_descent: 0.10,
+        cd_drogue: 0.8,
+        cd_main: 0.8,
+        diameter_drogue_in: 16.0,
+        diameter_main_in: 36.0,
+        altitude_main_ft: 500.0,
+        wind_heading_deg: 0.0,
+        wind_velocity_mph: 8.0,
         rail_length: 3.0, 
         launch_angle: 5.0,
         launch_heading: 30.0,
@@ -485,11 +519,35 @@ fn main() -> eframe::Result {
                 {
                     simulate(&data_simulation, &data_analysis, &mut state_log, &config);
                 }
-                ui.separator();
+            });
+            ui.horizontal(|ui| {
                 ui.label("(Pitch deg, Bearing deg) Launch Angles");
                 if
                     ui.add(egui::widgets::DragValue::new(&mut config.launch_angle).speed(0.05)).changed() ||
                     ui.add(egui::widgets::DragValue::new(&mut config.launch_heading).speed(0.25)).changed()
+                {
+                    simulate(&data_simulation, &data_analysis, &mut state_log, &config);
+                }
+                ui.separator();
+                ui.label("Diameters (drogue in, main in)");
+                if
+                    ui.add(egui::widgets::DragValue::new(&mut config.diameter_drogue_in).speed(0.05)).changed() ||
+                    ui.add(egui::widgets::DragValue::new(&mut config.diameter_main_in).speed(0.05)).changed()
+                {
+                    simulate(&data_simulation, &data_analysis, &mut state_log, &config);
+                }
+                ui.separator();
+                ui.label("Main Deploy Altitude (ft)");
+                if
+                    ui.add(egui::widgets::DragValue::new(&mut config.altitude_main_ft).speed(0.5)).changed()
+                {
+                    simulate(&data_simulation, &data_analysis, &mut state_log, &config);
+                }
+                ui.separator();
+                ui.label("Wind (heading deg, velocity mph)");
+                if
+                    ui.add(egui::widgets::DragValue::new(&mut config.wind_heading_deg).speed(0.5)).changed() ||
+                    ui.add(egui::widgets::DragValue::new(&mut config.wind_velocity_mph).speed(0.1)).changed()
                 {
                     simulate(&data_simulation, &data_analysis, &mut state_log, &config);
                 }

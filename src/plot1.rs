@@ -7,7 +7,7 @@ pub fn show(state_log: &Vec<SimulationState>, ui: &mut egui::Ui) {
     .show_axes(true)
     .show_grid(true)
     .width(625.0)
-    .height(340.0)
+    .height(320.0)
     .show(ui, |plot_ui| {
         // plot_ui.line(egui_plot::Line::new("wb (x, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.x.to_degrees() as f64]))));
         // plot_ui.line(egui_plot::Line::new("wb (y, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.y.to_degrees() as f64]))));

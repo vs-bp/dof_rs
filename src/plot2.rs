@@ -7,7 +7,7 @@ pub fn show(state_log: &Vec<SimulationState>, ui: &mut egui::Ui) {
     .show_axes(true)
     .show_grid(true)
     .width(625.0)
-    .height(340.0)
+    .height(320.0)
     .show(ui, |plot_ui| {
         // plot_ui.line(egui_plot::Line::new("wb (x, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.x.to_degrees() as f64]))));
         // plot_ui.line(egui_plot::Line::new("wb (y, deg/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).wb.y.to_degrees() as f64]))));
@@ -17,9 +17,9 @@ pub fn show(state_log: &Vec<SimulationState>, ui: &mut egui::Ui) {
         // plot_ui.line(egui_plot::Line::new("eul (p, deg)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul.y.to_degrees() as f64]))));
         // plot_ui.line(egui_plot::Line::new("eul (y, deg)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).eul.z.to_degrees() as f64]))));
 
-        // plot_ui.line(egui_plot::Line::new("fb (x, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.x as f64]))));
-        // plot_ui.line(egui_plot::Line::new("fb (y, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.y as f64]))));
-        // plot_ui.line(egui_plot::Line::new("fb (z, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.z as f64]))));
+        plot_ui.line(egui_plot::Line::new("fb (x, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.x as f64]))));
+        plot_ui.line(egui_plot::Line::new("fb (y, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.y as f64]))));
+        plot_ui.line(egui_plot::Line::new("fb (z, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb.z as f64]))));
 
         // plot_ui.line(egui_plot::Line::new("fb (motor, N)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).fb_thrust.x as f64]))));
         
@@ -56,9 +56,9 @@ pub fn show(state_log: &Vec<SimulationState>, ui: &mut egui::Ui) {
         // plot_ui.line(egui_plot::Line::new("vb (z, m/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).vb.z as f64]))));
         
 
-        plot_ui.line(egui_plot::Line::new("ve (Vertical, m/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).ve.x as f64]))));
-        plot_ui.line(egui_plot::Line::new("ve (East, m/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).ve.y as f64]))));
-        plot_ui.line(egui_plot::Line::new("ve (North, m/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).ve.z as f64]))));
+        // plot_ui.line(egui_plot::Line::new("ve (Vertical, m/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).ve.x as f64]))));
+        // plot_ui.line(egui_plot::Line::new("ve (East, m/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).ve.y as f64]))));
+        // plot_ui.line(egui_plot::Line::new("ve (North, m/s)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).ve.z as f64]))));
 
         // plot_ui.line(egui_plot::Line::new("xe (x, ft)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).xe.x / 0.3048 as f64]))));
         // plot_ui.line(egui_plot::Line::new("xe (y, ft)", egui_plot::PlotPoints::from_iter(state_log.iter().map(|d| [(*d).t as f64, (*d).xe.y / 0.3048 as f64]))));
