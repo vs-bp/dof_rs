@@ -1,0 +1,120 @@
+    /* -------------------------------------------------------------------------- */
+    /*                                Data Reading                                */
+    /* -------------------------------------------------------------------------- */
+    let mut data_simulation: Vec<DataExportSimulation> = vec![];
+    let mut data_analysis: Vec<DataExportAnalysis> = vec![];
+
+    let file_simulation: String = std::fs::read_to_string("C:/Users/kcast/OneDrive/Desktop/Code/dof_rs/input/simulation.csv").unwrap();
+    let file_analysis: String = std::fs::read_to_string("C:/Users/kcast/OneDrive/Desktop/Code/dof_rs/input/analysis.csv").unwrap();
+
+    for line in file_simulation.lines().collect::<Vec<&str>>() {
+        let words: Vec<&str> = line.split(',').collect();
+        data_simulation.push(DataExportSimulation { 
+            t: words[0].parse::<f64>().unwrap(), 
+            m: words[21].parse::<f64>().unwrap() * 0.02834952,
+            i_longitudinal: words[23].parse::<f64>().unwrap() * 0.0421401128809,
+            i_rotational: words[24].parse::<f64>().unwrap() * 0.0421401128809,
+            cg: words[27].parse::<f64>().unwrap() * 0.0254, 
+            thrust: words[29].parse::<f64>().unwrap(), 
+            l_ref: words[53].parse::<f64>().unwrap() * 0.0254,
+            _a_ref: words[54].parse::<f64>().unwrap() * 0.00064516
+        });
+    }
+    for line in file_analysis.lines().collect::<Vec<&str>>() {
+        let words: Vec<&str> = line.split(',').collect();
+        data_analysis.push(DataExportAnalysis {
+            mach: words[0].parse::<f64>().unwrap(),
+            cp: words[1].parse::<f64>().unwrap() * 0.0254,
+            cna: words[2].parse::<f64>().unwrap(),
+            cd: words[7].parse::<f64>().unwrap()
+        });
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                             Initial Simulation                             */
+    /* -------------------------------------------------------------------------- */
+    let mut state_log: Vec<SimulationState> = vec![];
+    let mut config: ConfigurationState = ConfigurationState { 
+        dt_ascent: 0.02,
+        dt_descent: 0.10,
+        cd_drogue: 0.8,
+        cd_main: 0.8,
+        diameter_drogue_in: 16.0,
+        diameter_main_in: 36.0,
+        altitude_main_ft: 500.0,
+        wind_heading_deg: 0.0,
+        wind_velocity_mph: 8.0,
+        rail_length: 3.0, 
+        launch_angle: 5.0,
+        launch_heading: 30.0,
+        control_alg_p: -50.0,
+        control_alg_d: -20.0,
+        control_roll_start: 3.0,
+        control_roll_target: 90.0,
+        control_slew_rate: 500.0
+    };
+    simulator::simulate(&data_simulation, &data_analysis, &mut state_log, &mut config);
+
+        /* -------------------------------------------------------------------------- */
+    /*                                  App State                                 */
+    /* -------------------------------------------------------------------------- */
+    let mut model: Vec<RocketComponent> = vec![];
+    model.push(RocketComponent::Airframe(RocketComponentAirframe {
+        length: 18.0,
+        diameter_fore: 0.0,
+        diameter_aft: 7.0,
+        wall_thickness: 0.1,
+        curve: components::component_internal::RocketComponentAirframeCurveSpec::OgiveAft,
+        tapered: true,
+        copy_diameter_aft: false,
+        copy_diameter_fore: true
+    }));
+    model.push(RocketComponent::Airframe(RocketComponentAirframe {
+        length: 18.0,
+        diameter_fore: 7.0,
+        diameter_aft: 7.0,
+        wall_thickness: 0.1,
+        curve: components::component_internal::RocketComponentAirframeCurveSpec::Conical,
+        tapered: false,
+        copy_diameter_aft: true,
+        copy_diameter_fore: true
+    }));
+    model.push(RocketComponent::Airframe(RocketComponentAirframe {
+        length: 6.0,
+        diameter_fore: 7.0,
+        diameter_aft: 6.0,
+        wall_thickness: 0.1,
+        curve: components::component_internal::RocketComponentAirframeCurveSpec::OgiveFore,
+        tapered: true,
+        copy_diameter_aft: false,
+        copy_diameter_fore: true
+    }));
+    model.push(RocketComponent::Airframe(RocketComponentAirframe {
+        length: 86.0,
+        diameter_fore: 6.0,
+        diameter_aft: 6.0,
+        wall_thickness: 0.1,
+        curve: components::component_internal::RocketComponentAirframeCurveSpec::Conical,
+        tapered: false,
+        copy_diameter_aft: true,
+        copy_diameter_fore: true
+    }));
+    model.push(RocketComponent::FinSet(RocketComponentFinSet {
+        count: 4,
+        chord_root: 8.0,
+        chord_tip: 3.0,
+        height: 6.0,
+        thickness: 0.18,
+        sweep: 6.0,
+        position_offset: 0.0
+    }));
+    model.push(RocketComponent::Airframe(RocketComponentAirframe {
+        length: 6.0,
+        diameter_fore: 6.0,
+        diameter_aft: 4.0,
+        wall_thickness: 0.1,
+        curve: components::component_internal::RocketComponentAirframeCurveSpec::Conical,
+        tapered: true,
+        copy_diameter_aft: false,
+        copy_diameter_fore: true
+    }));
