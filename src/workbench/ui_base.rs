@@ -1,10 +1,9 @@
-use std::{collections::HashMap, ops::RangeInclusive};
-use elegance::{ Checkbox, Slider, TextInput, egui::{ ComboBox, DragValue, Label, Ui } };
-use strum::IntoEnumIterator;
+use std::{collections::HashMap, ops::{RangeInclusive}};
+use elegance::{ Checkbox, Slider, TextInput, egui::{ ComboBox, DragValue, Label, Ui, CollapsingHeader } };
 use crate::units::*;
 use crate::materials::*;
-use crate::model::finset::*;
-use crate::model::section::*;
+use crate::model::mass::*;
+use crate::model::curves::*;
 
 /* --------------------------------- Ranges --------------------------------- */
 // Range specification for draggable values (tube diam, tube length, motor diam, elastic/shear modulus, etc.)
@@ -18,7 +17,8 @@ pub enum UnitRangeSpec {
     FinOffset,
     MaterialDensity,
     ModulusYoungs,
-    ModulusShear
+    ModulusShear,
+    WallThickness
 }
 impl UnitRangeSpec {
     pub fn resolve(&self, unit: UnitType) -> RangeInclusive<f32> {
@@ -102,6 +102,14 @@ impl UnitRangeSpec {
                 UnitType::ksi => 0.0..=30000.0,
                 _ => 0.0..=0.0
             },
+            UnitRangeSpec::WallThickness => match unit {
+                UnitType::Inch => 0.0..=0.50,
+                UnitType::Foot => 0.0..=0.05,
+                UnitType::Meter => 0.0..=0.013,
+                UnitType::Centimeter => 0.0..=1.3,
+                UnitType::Millimeter => 0.0..=13.0,
+                _ => 0.0..=0.0
+            }
         }
     }
 }
@@ -131,6 +139,21 @@ pub fn show_unit_selector(ui: &mut Ui, id_source: usize, unit_kind: UnitKind, fi
             UnitKind::Density => {
                 ui.selectable_value(value, UnitType::KgPerCubicMeter, UnitType::KgPerCubicMeter.suffix());
                 ui.selectable_value(value, UnitType::OzPerCubicInch, UnitType::OzPerCubicInch.suffix());
+            },
+            UnitKind::Mass => {
+                ui.selectable_value(value, UnitType::Kg, UnitType::Kg.suffix());
+                ui.selectable_value(value, UnitType::G, UnitType::G.suffix());
+                ui.selectable_value(value, UnitType::Oz, UnitType::Oz.suffix());
+                ui.selectable_value(value, UnitType::Lb, UnitType::Lb.suffix());
+            },
+            UnitKind::Volume => {
+                ui.selectable_value(value, UnitType::CubicMeter, UnitType::CubicMeter.suffix());
+            },
+            UnitKind::Inertia => {
+                ui.selectable_value(value, UnitType::KgSquareMeter, UnitType::KgSquareMeter.suffix());
+            },
+            UnitKind::Area => {
+                ui.selectable_value(value, UnitType::SquareMeter, UnitType::SquareMeter.suffix());
             }
         }
     });
@@ -138,9 +161,18 @@ pub fn show_unit_selector(ui: &mut Ui, id_source: usize, unit_kind: UnitKind, fi
 }
 
 /* ----------------------------- Value Displays ----------------------------- */
+// Duo of numeric value and slider within given range.
+pub fn show_range_value_field(ui: &mut Ui, value: &mut f32, range: RangeInclusive<f32>, label: String, suffix: String) {
+    let width: f32 = 300.0;
+    ui.horizontal(|ui| {
+        ui.add(DragValue::new(value).suffix(suffix.clone()).fixed_decimals(3));
+        ui.separator();
+        ui.add(Slider::new(value, range).suffix(suffix.clone()).decimals(3).desired_width(width).label(label));
+    });
+}
 // Trio of numeric value, slider, checkbox, and unit selector.
-// Refreshes true value per frame.
-pub fn show_unit_value(
+// Refreshes true unit value per frame and auto adjusts ui value on unit change.
+pub fn show_unit_value_field(
     ui: &mut Ui, id_source: usize, 
     unit_kind: UnitKind, label: String, value: &mut UnitValue, range_spec: UnitRangeSpec,
     checkbox: Option<&mut bool>, checkbox_label: &str
@@ -150,22 +182,51 @@ pub fn show_unit_value(
     let mut range: RangeInclusive<f32> = range_spec.resolve(value.unit);
 
     ui.horizontal(|ui| {
+        // Unit change calls update_ui.
         if show_unit_selector(ui, id_source, unit_kind, &label, &mut value.unit) { 
             value.update_ui(); 
             suffix = value.unit.suffix();
             range = range_spec.resolve(value.unit);
         }
+
         ui.separator();
-        if ui.add(DragValue::new(&mut value.value_ui).suffix(suffix.clone()).fixed_decimals(3)).changed() { value.update_true(); }
+        ui.add(DragValue::new(&mut value.value_ui).suffix(suffix.clone()).fixed_decimals(3));
         ui.separator(); 
-        if ui.add(Slider::new(&mut value.value_ui, range).suffix(suffix.clone()).decimals(3).desired_width(width).label(label)).changed() { value.update_true(); }
-        if checkbox.is_some() { ui.separator(); ui.add(Checkbox::new(checkbox.unwrap(), checkbox_label)); }
+        ui.add(Slider::new(&mut value.value_ui, range).suffix(suffix.clone()).decimals(3).desired_width(width).label(label));
+        if checkbox.is_some() { 
+            ui.separator(); 
+            ui.add(Checkbox::new(checkbox.unwrap(), checkbox_label));
+        }
+        
+        // Each frame calls update_true but only after update_ui had its chance to run.
+        value.update_true();
+    });
+}
+// Duo of numeric value label and unit selector.
+// Auto adjusts ui value on unit change.
+// TODO Checkbox to include subcomponents later?
+pub fn show_unit_value_label(
+    ui: &mut Ui, id_source: usize, 
+    unit_kind: UnitKind, label: String, value: &mut UnitValue
+) {
+    let mut suffix: String = value.unit.suffix();
+
+    ui.columns(3, |columns| {
+        // Name label.
+        columns[0].add(Label::new(&label));
+        // Value label.
+        columns[1].add(Label::new(value.value_ui.to_string() + " " + &suffix));
+        // Unit change calls update_ui.
+        if show_unit_selector(&mut columns[2], id_source, unit_kind, &label, &mut value.unit) { 
+            value.update_ui(); 
+            suffix = value.unit.suffix();
+        }
     });
 }
 
 /* -------------------------------- Materials ------------------------------- */
 // Dropdown for selecting material and boxes for defining a custom one for that part.
-pub fn show_material_selector(ui: &mut Ui, id_source: usize, material_value: &mut MaterialSpec, custom_material_flag: &mut bool, materials: &HashMap<String, MaterialSpec>) {
+pub fn show_material_selector(ui: &mut Ui, id_source: usize, material_value: &mut Material, custom_material_flag: &mut bool, materials: &HashMap<String, Material>) {
     // Horizontal bar for material dropdown or custom material name.
     ui.horizontal(|ui| {
         ui.add(Checkbox::new(custom_material_flag, "Custom Material"));
@@ -186,27 +247,63 @@ pub fn show_material_selector(ui: &mut Ui, id_source: usize, material_value: &mu
     });
     // Vertical section for settings if custom material set.
     if *custom_material_flag {
-        show_unit_value(ui, id_source, UnitKind::Density, "Density".to_string(), &mut material_value.density, UnitRangeSpec::MaterialDensity, None, "");
-        show_unit_value(ui, id_source, UnitKind::Pressure, "Young's Modulus".to_string(), &mut material_value.modulus_youngs, UnitRangeSpec::ModulusYoungs, None, "");
-        show_unit_value(ui, id_source, UnitKind::Pressure, "Shear Modulus".to_string(), &mut material_value.modulus_shear, UnitRangeSpec::ModulusShear, None, "");
+        show_unit_value_field(ui, id_source, UnitKind::Density, "Density".to_string(), &mut material_value.density, UnitRangeSpec::MaterialDensity, None, "");
+        show_unit_value_field(ui, id_source, UnitKind::Pressure, "Young's Modulus".to_string(), &mut material_value.modulus_youngs, UnitRangeSpec::ModulusYoungs, None, "");
+        show_unit_value_field(ui, id_source, UnitKind::Pressure, "Shear Modulus".to_string(), &mut material_value.modulus_shear, UnitRangeSpec::ModulusShear, None, "");
     }
+}
+
+/* ----------------------------- Mass Properties ---------------------------- */
+pub fn show_mass_properties(ui: &mut Ui, id_source: usize, label: String, mass_properties: &mut MassProperties) {
+    CollapsingHeader::new(label).show(ui, |ui| {
+        show_unit_value_label(ui, id_source, UnitKind::Volume, "Volume".to_owned(), &mut mass_properties.volume);
+        show_unit_value_label(ui, id_source, UnitKind::Mass, "Mass".to_owned(), &mut mass_properties.mass);
+        show_unit_value_label(ui, id_source, UnitKind::Length, "CG".to_owned(), &mut mass_properties.cg);
+        show_unit_value_label(ui, id_source, UnitKind::Inertia, "Irot".to_owned(), &mut mass_properties.i_rotational);
+        show_unit_value_label(ui, id_source, UnitKind::Inertia, "Ilong".to_owned(), &mut mass_properties.i_longitudinal);
+    });
 }
 
 /* --------------------------------- Curves --------------------------------- */
 // Curve selector combo box.
-pub fn show_curve_combo(ui: &mut Ui, curve_spec: &mut RocketSectionCurveSpec) {
+pub fn show_curve_combo(ui: &mut Ui, curve_spec: &mut CurveProfile) {
     ui.horizontal(|ui| {
         ui.add(Label::new("Curve Profile"));
         ui.separator();
         let selected_text: &str = match *curve_spec {
-            RocketSectionCurveSpec::Conical => "Conical",
-            RocketSectionCurveSpec::OgiveFore => "Ogive (Fore)",
-            RocketSectionCurveSpec::OgiveAft => "Ogive (Aft)"
+            CurveProfile::Conical => "Conical",
+            CurveProfile::Ogive(_,_) => "Ogive",
+            CurveProfile::Elliptical(_) => "Elliptical",
+            CurveProfile::Parabolic(_,_) => "Parabolic",
+            CurveProfile::Haack(_,_) => "Haack"
         };
         ComboBox::new("curveselect", "").selected_text(selected_text).show_ui(ui, |ui| {
-            ui.selectable_value(curve_spec, RocketSectionCurveSpec::Conical, "Conical");
-            ui.selectable_value(curve_spec, RocketSectionCurveSpec::OgiveFore, "Ogive (Tangent to fore)");
-            ui.selectable_value(curve_spec, RocketSectionCurveSpec::OgiveAft, "Ogive (Tangent to aft)");
+            ui.selectable_value(curve_spec, CurveProfile::Conical, "Conical");
+            ui.selectable_value(curve_spec, CurveProfile::Ogive(false, 1.0), "Ogive");
+            ui.selectable_value(curve_spec, CurveProfile::Elliptical(false), "Elliptical");
+            ui.selectable_value(curve_spec, CurveProfile::Haack(false, 0.333), "Haack");
+            ui.selectable_value(curve_spec, CurveProfile::Parabolic(false, 1.0), "Parabolic");
         });
+        match curve_spec {
+            CurveProfile::Conical => {},
+            CurveProfile::Ogive(flipped, k) => {
+                ui.add(Checkbox::new(flipped, "Flipped"));
+                ui.separator();
+                show_range_value_field(ui, k, 0.0..=1.0, "Shape Parameter".to_owned(), "".to_owned());
+            },
+            CurveProfile::Haack(flipped, k) => {
+                ui.add(Checkbox::new(flipped, "Flipped"));
+                ui.separator();
+                show_range_value_field(ui, k, 0.0..=1.0, "Shape Parameter".to_owned(), "".to_owned());
+            },
+            CurveProfile::Parabolic(flipped, k) => {
+                ui.add(Checkbox::new(flipped, "Flipped"));
+                ui.separator();
+                show_range_value_field(ui, k, 0.0..=1.0, "Shape Parameter".to_owned(), "".to_owned());
+            },
+            CurveProfile::Elliptical(flipped) => {
+                ui.add(Checkbox::new(flipped, "Flipped"));
+            }
+        }
     });
 }

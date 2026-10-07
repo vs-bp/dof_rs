@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use eframe::egui;
 use elegance::*;
+use crate::model::RocketModel;
 use crate::units::*;
 use crate::materials::*;
 use crate::model::finset::*;
@@ -25,15 +26,15 @@ pub enum WorkbenchAction {
 // Full app state collection
 struct App {
     last_workbench_action: WorkbenchAction,
-    materials: HashMap<String, MaterialSpec>,
-    model: Vec<RocketSection>
+    materials: HashMap<String, Material>,
+    model: RocketModel
 }
 
 pub fn main() -> eframe::Result {
     let mut app: App = App {
         last_workbench_action: WorkbenchAction::None,
         materials: materials_load(),
-        model: vec![]
+        model: RocketModel::default()
     };
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_maximized(true).with_fullscreen(false),
