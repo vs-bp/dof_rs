@@ -254,14 +254,12 @@ pub fn show_material_selector(ui: &mut Ui, id_source: usize, material_value: &mu
 }
 
 /* ----------------------------- Mass Properties ---------------------------- */
-pub fn show_mass_properties(ui: &mut Ui, id_source: usize, label: String, mass_properties: &mut MassProperties) {
-    CollapsingHeader::new(label).show(ui, |ui| {
-        show_unit_value_label(ui, id_source, UnitKind::Volume, "Volume".to_owned(), &mut mass_properties.volume);
-        show_unit_value_label(ui, id_source, UnitKind::Mass, "Mass".to_owned(), &mut mass_properties.mass);
-        show_unit_value_label(ui, id_source, UnitKind::Length, "CG".to_owned(), &mut mass_properties.cg);
-        show_unit_value_label(ui, id_source, UnitKind::Inertia, "Irot".to_owned(), &mut mass_properties.i_rotational);
-        show_unit_value_label(ui, id_source, UnitKind::Inertia, "Ilong".to_owned(), &mut mass_properties.i_longitudinal);
-    });
+pub fn show_mass_properties(ui: &mut Ui, id_source: usize, mass_properties: &mut MassProperties) {
+    show_unit_value_label(ui, id_source, UnitKind::Volume, "Volume".to_owned(), &mut mass_properties.volume);
+    show_unit_value_label(ui, id_source, UnitKind::Mass, "Mass".to_owned(), &mut mass_properties.mass);
+    show_unit_value_label(ui, id_source, UnitKind::Length, "CG".to_owned(), &mut mass_properties.cg);
+    show_unit_value_label(ui, id_source, UnitKind::Inertia, "Irot".to_owned(), &mut mass_properties.i_rotational);
+    show_unit_value_label(ui, id_source, UnitKind::Inertia, "Ilong".to_owned(), &mut mass_properties.i_longitudinal);
 }
 
 /* --------------------------------- Curves --------------------------------- */

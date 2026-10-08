@@ -27,8 +27,8 @@ pub struct RocketSection {
     
     pub curve_profile: CurveProfile,
 
-    pub copy_diameter_fore: bool,
-    pub copy_diameter_aft: bool,
+    pub workbench_copy_diameter_fore: bool,
+    pub workbench_copy_diameter_aft: bool,
 
     pub custom_material: bool,
     pub material: Material,
@@ -90,6 +90,8 @@ impl RocketSection {
         self.int_mass_properties.i_rotational.value_true = ixx; self.int_mass_properties.i_rotational.update_ui();
         self.int_mass_properties.i_longitudinal.value_true = iyy; self.int_mass_properties.i_longitudinal.update_ui();
         self.int_mass_properties.cg.value_true = cg; self.int_mass_properties.cg.update_ui();
+
+        // TODO Update components.
     }
     
     // Top-view cross sectional area in square meters of a given spot in the cross section.
@@ -126,8 +128,8 @@ impl RocketSection {
             wall_thickness: UnitValue::inches(0.08), 
             curve_profile: CurveProfile::Conical, 
             tapered: false, 
-            copy_diameter_fore: false, 
-            copy_diameter_aft: false,
+            workbench_copy_diameter_fore: false, 
+            workbench_copy_diameter_aft: false,
             components: vec![],
             custom_material: false,
             material: Material::default(),
