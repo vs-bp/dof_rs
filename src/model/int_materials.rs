@@ -1,8 +1,9 @@
 use std::collections::HashMap;
+use byteable::Byteable;
+use crate::model::int_units::*;
 
-use crate::units::UnitValue;
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Byteable, Debug, Clone, PartialEq)]
+#[byteable(io_only)]
 pub struct Material {
     pub name: String,
     pub density: UnitValue,

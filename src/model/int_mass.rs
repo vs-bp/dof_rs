@@ -1,12 +1,12 @@
-use nalgebra::Unit;
+use byteable::Byteable;
+use crate::model::int_units::*;
 
-use crate::units::UnitValue;
-
-#[derive(Clone, Debug)]
+#[derive(Byteable, Clone, Debug)]
+#[byteable(io_only)]
 pub struct MassProperties {
     // Origin is assumed to be at some x-value but y=0 and z=0 (on the centerline of the rocket)
     // for cg and inertia calcs.
-    pub volume: UnitValue,
+    pub wall_volume: UnitValue,
     pub mass: UnitValue,
     pub cg: UnitValue,
     pub i_rotational: UnitValue,
@@ -15,7 +15,7 @@ pub struct MassProperties {
 impl MassProperties {
     // Values all default to zero.
     pub fn default() -> MassProperties { MassProperties { 
-        volume: UnitValue::m3(0.0), 
+        wall_volume: UnitValue::m3(0.0), 
         mass: UnitValue::kg(0.0), 
         cg: UnitValue::meters(0.0), 
         i_rotational: UnitValue::kgm2(0.0), 
@@ -30,7 +30,7 @@ impl MassProperties {
         output.i_longitudinal.value_true = 0.0;
         output.i_rotational.value_true = 0.0;
         output.mass.value_true = 0.0;
-        output.volume.value_true = 0.0;
+        output.wall_volume.value_true = 0.0;
 
         let mut volume: f32 = 0.0;
         let mut mass: f32 = 0.0;
@@ -40,7 +40,7 @@ impl MassProperties {
         let mut y_position: f32 = 0.0;
         for part in parts {
             y_position = part.0;
-            volume += part.1.volume.value_true;
+            volume += part.1.wall_volume.value_true;
             mass += part.1.mass.value_true;
             cg += part.1.mass.value_true * (part.1.cg.value_true + y_position);
             ixx += part.1.i_rotational.value_true;
@@ -49,7 +49,7 @@ impl MassProperties {
         cg /= mass;
         iyy -= mass * (cg * cg);
 
-        output.volume.value_true = volume; output.volume.update_ui();
+        output.wall_volume.value_true = volume; output.wall_volume.update_ui();
         output.mass.value_true = mass; output.mass.update_ui();
         output.cg.value_true = cg; output.cg.update_ui();
         output.i_rotational.value_true = ixx; output.i_rotational.update_ui();

@@ -1,17 +1,7 @@
-use egui::Key::P;
-use elegance::egui::{ Ui, ScrollArea, CollapsingHeader };
-use crate::model_workbench::ui_component::show_component;
+use elegance::egui::{ Ui };
 use crate::*;
-use crate::units::*;
-use crate::materials::*;
-use crate::model::finset::*;
-use crate::model::section::*;
-use crate::model_workbench::ui_base::*;
-use crate::model_workbench::ui_section::*;
-
-mod ui_base;
-mod ui_component;
-mod ui_section;
+use crate::editor::ui_section::*;
+use crate::editor::ui_component::*;
 
 /* -------------------------------------------------------------------------- */
 /*                                   Update                                   */
@@ -40,14 +30,14 @@ pub fn update(app: &mut App) {
 
 // Draws UI for modifying the current model.
 pub fn show(ui: &mut Ui, app: &mut App) {
-    ui.heading("Model Editor");
+    ui.heading("Model Workbench");
     ui.separator();
 
     // Model properties UI.
     // TODO show_mass_properties(ui, 10000000, "Model Properties".to_string(), &mut app.model.int_mass_properties);
 
     // Show edit UI for given section.
-    match app.last_workbench_selection {
+    match app.workbench_selection {
         WorkbenchSelection::None => {},
         WorkbenchSelection::Section(s) => show_section(ui, s, app),
         WorkbenchSelection::Component(s, c) => show_component(ui, s, c, app)

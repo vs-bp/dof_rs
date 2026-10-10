@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+byteable = "0.39.0"
 eframe = "0.36.2"
 egui = "0.36"
 egui-elegance = "0.16"
+egui_plot = "0.37.0"
 enum-as-inner = "0.7.0"
 nalgebra = "0.35.0"
 ndarray-stats = "0.7.0"

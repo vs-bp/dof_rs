@@ -1,6 +1,9 @@
+use byteable::Byteable;
 use strum_macros::EnumIter;
 
-/* ------------------------------ Unit Handling ----------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                                Unit Handling                               */
+/* -------------------------------------------------------------------------- */
 // Many display and modelling variables will have configurable units.
 // For each type of unit, the basic idea is to have a "true" value, a "ui" value, and an enum
 // which defines the unit the ui value is in while the true value is always in a fixed (SI) unit.
@@ -9,7 +12,10 @@ use strum_macros::EnumIter;
 // UnitValues have a type and kind, where the kind determines what type values can be used (done in code) and the UnitValue
 // type itself handles updates to either true or ui unit values and conversions between types. (visible to the user through the selector)
 
-#[derive(Debug, Copy, Clone, PartialEq, EnumIter)]
+/* -------------------------------------------------------------------------- */
+/*                         Unit Kinds (Internal Logic)                        */
+/* -------------------------------------------------------------------------- */
+#[derive(Copy, Clone)]
 pub enum UnitKind {
     Length,
     Area,
@@ -20,10 +26,14 @@ pub enum UnitKind {
     Pressure
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, EnumIter)]
+/* -------------------------------------------------------------------------- */
+/*                         Unit Types and Conversions                         */
+/* -------------------------------------------------------------------------- */
+#[derive(Byteable, Debug, Copy, Clone, PartialEq)]
+#[byteable(io_only)]
 pub enum UnitType {
     Foot, Inch, Millimeter, Centimeter, Meter,
-    Pascal, Kilopascal, Megapascal, Gigapascal, psi, ksi,
+    Pascal, Kilopascal, Megapascal, Gigapascal, Psi, Ksi,
     KgPerCubicMeter, OzPerCubicInch,
     Kg, G, Oz, Lb,
     CubicMeter,
@@ -43,8 +53,8 @@ impl UnitType {
             UnitType::Megapascal => { "MPa".to_owned() },
             UnitType::Kilopascal => { "KPa".to_owned() },
             UnitType::Pascal => { "Pa".to_owned() },
-            UnitType::psi => { "psi".to_owned() },
-            UnitType::ksi => { "ksi".to_owned() },
+            UnitType::Psi => { "psi".to_owned() },
+            UnitType::Ksi => { "ksi".to_owned() },
             UnitType::KgPerCubicMeter => { "kg/(m^3)".to_owned() },
             UnitType::OzPerCubicInch => { "oz/(in^3)".to_owned() },
             UnitType::Kg => { "kg".to_owned() },
@@ -57,7 +67,13 @@ impl UnitType {
         }
     }
 }
-#[derive(Debug, Copy, Clone, PartialEq)]
+
+
+/* -------------------------------------------------------------------------- */
+/*                              Unit Value Struct                             */
+/* -------------------------------------------------------------------------- */
+#[derive(Byteable, Debug, Copy, Clone, PartialEq)]
+#[byteable(io_only)]
 pub struct UnitValue {
     pub value_true: f32,    // meters.
     pub value_ui: f32,      // Any unit.
@@ -85,8 +101,8 @@ impl UnitValue {
             UnitType::Megapascal => self.value_true / 1000000.0,
             UnitType::Kilopascal => self.value_true / 1000.0,
             UnitType::Pascal => self.value_true,
-            UnitType::psi => self.value_true * 0.0001450377,
-            UnitType::ksi => self.value_true * 0.0000001450377,
+            UnitType::Psi => self.value_true * 0.0001450377,
+            UnitType::Ksi => self.value_true * 0.0000001450377,
             UnitType::KgPerCubicMeter => self.value_true,
             UnitType::OzPerCubicInch => self.value_true * 0.00057803668683244,
             UnitType::Kg => self.value_true,
@@ -110,8 +126,8 @@ impl UnitValue {
             UnitType::Megapascal => self.value_ui * 1000000.0,
             UnitType::Kilopascal => self.value_ui * 1000.0,
             UnitType::Pascal => self.value_ui * 1.0,
-            UnitType::psi => self.value_ui * 0.0001450377,
-            UnitType::ksi => self.value_ui * 0.0000001450377,
+            UnitType::Psi => self.value_ui * 0.0001450377,
+            UnitType::Ksi => self.value_ui * 0.0000001450377,
             UnitType::KgPerCubicMeter => self.value_ui,
             UnitType::OzPerCubicInch => self.value_ui / 0.00057803668683244,
             UnitType::Kg => self.value_ui,

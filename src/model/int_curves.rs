@@ -6,10 +6,11 @@
 // The f32 if present will represent some shape parameter for the curve.
 
 use core::f32;
+use byteable::Byteable;
 
-#[derive(PartialEq)]
+#[derive(Byteable, PartialEq)]
+#[byteable(io_only)]
 pub enum CurveProfile {
-    // TODO More curves pending.
     Conical,
     Ogive(bool, f32),
     Elliptical(bool),
@@ -34,7 +35,9 @@ impl CurveProfile {
         return (x * r / l) + r0;
     }
     pub fn sample_ogive(flipped: bool, k: f32, r0: f32, r1: f32, l: f32, x: f32) -> f32 {
-        // K=0 is just conical.
+        // If R1=R0 curve is straight so we use conical logic to avoid singularities.
+        if r1 == r0 { return Self::sample_conical(r0, r1, l, x); }
+        // Same for K=0.
         if k == 0.0 { return Self::sample_conical(r0, r1, l, x); }
 
         // Handle curve flipping.
@@ -49,6 +52,9 @@ impl CurveProfile {
         return ((rho*rho - (rho*alpha.cos() - x).powi(2)).sqrt() - rho*alpha.sin()) * direction + r0;
     }
     pub fn sample_elliptical(flipped: bool, r0: f32, r1: f32, l: f32, x: f32) -> f32 {
+        // If R1=R0 curve is straight so we use conical logic to avoid singularities.
+        if r1 == r0 { return Self::sample_conical(r0, r1, l, x); }
+
         // Handle curve flipping.
         let (r0, r1, l, x) = Self::flip_coordinates(flipped, r0, r1, l, x);
 
@@ -56,7 +62,10 @@ impl CurveProfile {
         let r: f32 = r1 - r0;
         return ((r * (2.0*l*x - x*x).sqrt()) / l) + r0;
     }
-    pub fn sample_parabolic(flipped: bool, k: f32, r0: f32, r1: f32, l: f32, x: f32) -> f32 {           
+    pub fn sample_parabolic(flipped: bool, k: f32, r0: f32, r1: f32, l: f32, x: f32) -> f32 {  
+        // If R1=R0 curve is straight so we use conical logic to avoid singularities.
+        if r1 == r0 { return Self::sample_conical(r0, r1, l, x); }
+
         // Handle curve flipping.
         let (r0, r1, l, x) = Self::flip_coordinates(flipped, r0, r1, l, x);
 
@@ -65,6 +74,9 @@ impl CurveProfile {
         return r*(((2.0*x/l) - k*(x/l)*(x/l)) / (2.0-k)) + r0;
     }
     pub fn sample_haack(flipped: bool, k: f32, r0: f32, r1: f32, l: f32, x: f32) -> f32 {
+        // If R1=R0 curve is straight so we use conical logic to avoid singularities.
+        if r1 == r0 { return Self::sample_conical(r0, r1, l, x); }
+
         // Handle curve flipping.
         let (r0, r1, l, x) = Self::flip_coordinates(flipped, r0, r1, l, x);
 

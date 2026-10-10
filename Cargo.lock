@@ -535,6 +535,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
 
 [[package]]
+name = "byteable"
+version = "0.39.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "511f046fa4d7cd4a3b26efd43640f90b15075d09c148d0db5e2add12f2fb8da6"
+dependencies = [
+ "byteable_derive",
+ "ordered-float",
+]
+
+[[package]]
+name = "byteable_derive"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48b67d2784fb800c72265aef1999b62997e71cfe758a32632f06f39d512bde38"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "bytemuck"
 version = "1.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -815,9 +837,11 @@ dependencies = [
 name = "dof_rs"
 version = "0.1.0"
 dependencies = [
+ "byteable",
  "eframe",
  "egui",
  "egui-elegance",
+ "egui_plot",
  "enum-as-inner",
  "nalgebra",
  "ndarray-stats",
@@ -967,6 +991,17 @@ dependencies = [
  "log",
  "profiling",
  "winit",
+]
+
+[[package]]
+name = "egui_plot"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90f3711a5032bb65a41011b23fcdc6c4bb599757b82cc0181d41e7d1de16986a"
+dependencies = [
+ "ahash",
+ "egui",
+ "emath",
 ]
 
 [[package]]

@@ -1,9 +1,9 @@
 use std::{collections::HashMap, ops::{RangeInclusive}};
-use elegance::{ Checkbox, Slider, TextInput, egui::{ ComboBox, DragValue, Label, Ui, CollapsingHeader } };
-use crate::units::*;
-use crate::materials::*;
-use crate::model::mass::*;
-use crate::model::curves::*;
+use elegance::{ Checkbox, Slider, TextInput, egui::{ ComboBox, DragValue, Label, Ui } };
+use crate::model::int_units::*;
+use crate::model::int_materials::*;
+use crate::model::int_mass::*;
+use crate::model::int_curves::*;
 
 /* --------------------------------- Ranges --------------------------------- */
 // Range specification for draggable values (tube diam, tube length, motor diam, elastic/shear modulus, etc.)
@@ -89,8 +89,8 @@ impl UnitRangeSpec {
                 UnitType::Megapascal => 0.0..=200000.0,
                 UnitType::Kilopascal => 0.0..=200000000.0,
                 UnitType::Pascal => 0.0..=200000000000.0,
-                UnitType::psi => 0.0..=30000000.0,
-                UnitType::ksi => 0.0..=30000.0,
+                UnitType::Psi => 0.0..=30000000.0,
+                UnitType::Ksi => 0.0..=30000.0,
                 _ => 0.0..=0.0
             },
             UnitRangeSpec::ModulusShear => match unit {
@@ -98,8 +98,8 @@ impl UnitRangeSpec {
                 UnitType::Megapascal => 0.0..=200000.0,
                 UnitType::Kilopascal => 0.0..=200000000.0,
                 UnitType::Pascal => 0.0..=200000000000.0,
-                UnitType::psi => 0.0..=30000000.0,
-                UnitType::ksi => 0.0..=30000.0,
+                UnitType::Psi => 0.0..=30000000.0,
+                UnitType::Ksi => 0.0..=30000.0,
                 _ => 0.0..=0.0
             },
             UnitRangeSpec::WallThickness => match unit {
@@ -129,8 +129,8 @@ pub fn show_unit_selector(ui: &mut Ui, id_source: usize, unit_kind: UnitKind, fi
                 ui.selectable_value(value, UnitType::Millimeter, UnitType::Millimeter.suffix());
             },
             UnitKind::Pressure => {
-                ui.selectable_value(value, UnitType::ksi, UnitType::ksi.suffix());
-                ui.selectable_value(value, UnitType::psi, UnitType::psi.suffix());
+                ui.selectable_value(value, UnitType::Ksi, UnitType::Ksi.suffix());
+                ui.selectable_value(value, UnitType::Psi, UnitType::Psi.suffix());
                 ui.selectable_value(value, UnitType::Gigapascal, UnitType::Gigapascal.suffix());
                 ui.selectable_value(value, UnitType::Megapascal, UnitType::Megapascal.suffix());
                 ui.selectable_value(value, UnitType::Kilopascal, UnitType::Kilopascal.suffix());
@@ -255,7 +255,7 @@ pub fn show_material_selector(ui: &mut Ui, id_source: usize, material_value: &mu
 
 /* ----------------------------- Mass Properties ---------------------------- */
 pub fn show_mass_properties(ui: &mut Ui, id_source: usize, mass_properties: &mut MassProperties) {
-    show_unit_value_label(ui, id_source, UnitKind::Volume, "Volume".to_owned(), &mut mass_properties.volume);
+    show_unit_value_label(ui, id_source, UnitKind::Volume, "Material Volume".to_owned(), &mut mass_properties.wall_volume);
     show_unit_value_label(ui, id_source, UnitKind::Mass, "Mass".to_owned(), &mut mass_properties.mass);
     show_unit_value_label(ui, id_source, UnitKind::Length, "CG".to_owned(), &mut mass_properties.cg);
     show_unit_value_label(ui, id_source, UnitKind::Inertia, "Irot".to_owned(), &mut mass_properties.i_rotational);
