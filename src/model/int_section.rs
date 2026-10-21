@@ -1,16 +1,19 @@
 use core::f32;
-use std::pin::pin;
 use byteable::Byteable;
+use egui::{Color32, Ui};
+use elegance::CollapsingSection;
 use elegance::egui::{ Vec2, vec2 };
 
 use enum_as_inner::EnumAsInner;
+use crate::App;
+use crate::model::component_motor_mount::RocketComponentMotorMount;
 use crate::model::int_mass::MassProperties;
 use crate::model::int_units::*;
 use crate::model::int_materials::*;
 use crate::model::int_curves::*;
-use crate::model::component_finset::*;
-use crate::model::component_genericmass::*;
-use crate::model::component_parachute::*;
+use crate::model::int_ui_base::*;
+use crate::model::component_fin_set::*;
+use crate::model::component_generic_mass::*;
 
 /* -------------------------------------------------------------------------- */
 /*                                  Sections                                  */
@@ -154,63 +157,87 @@ impl RocketSection {
     /* -------------------------------------------------------------------------- */
     // Aero coefficients.
     // (See OpenRocket technical docs)
+    // Returns the CNa for just this section. (No components)
     pub fn cna(&self, alpha: f32, mach: f32, aref: f32, lref: f32) -> f32 {   
-        // TODO Check inverted behavior.
-
         let k: f32 = 1.1;
         let correction: f32 = if alpha == 0.0 { 1.0 } else { alpha.sin() / alpha };
-
         let cna_base: f32 = (2.0 / aref) * (self.int_area_aft.value_true - self.int_area_fore.value_true) * correction;
         let cna_body_lift: f32 = k * (self.int_area_planform.value_true / aref) * correction * alpha.sin();
 
-        let mut cna_components: f32 = 0.0;
-        for generic_component in &self.components {
-            match generic_component {
-                RocketComponent::FinSet(component) => { cna_components += component.cna(alpha, mach, aref, lref, self.diameter_aft.value_true / 2.0); },
-                _ => {}
-            }
-        }
-        return cna_base + cna_body_lift + cna_components;
+        return cna_base + cna_body_lift;
     }
-    pub fn cma(&self, alpha: f32, _mach: f32, aref: f32, lref: f32) -> f32 {
+    // Returns CP for just the given section. (No components)
+    pub fn cp(&self, alpha: f32, mach: f32, aref: f32, lref: f32) -> f32 { 
         // TODO Check inverted behavior.
+        // TODO CP estimate differs from openrocket as angle increases?
 
+        // CMa estimate.        
         let k: f32 = 1.1;
         let correction: f32 = if alpha == 0.0 { 1.0 } else { alpha.sin() / alpha };
 
         let cma_base: f32 = correction * (2.0 / (aref * lref)) * (self.length.value_true * self.int_area_aft.value_true - self.int_aero_volume.value_true);
         let cma_body_lift: f32 = 0.0; // TODO ??? whats going on with body lift and cp : self.int_area_planform_centroid.value_true * k * (self.int_area_planform.value_true / aref) * correction * alpha.sin();
-        return cma_base + cma_body_lift;
-    }
-    pub fn cp(&self, alpha: f32, mach: f32, aref: f32, lref: f32) -> f32 { 
-        // TODO Check inverted behavior.
-        // TODO CP estimate differs from openrocket as angle increases?
+        let cma = cma_base + cma_body_lift;
 
+        // CNa and CP from CMa / CNa.
         let cna: f32 = self.cna(alpha, mach, aref, lref);
-        let cma: f32 = self.cma(alpha, mach, aref, lref);
-        if (self.diameter_aft.value_true - self.diameter_fore.value_true).abs() < 0.000001 { return 0.0; }
-        else { return lref * cma / cna; }
+        let cp: f32 = 
+            if (self.diameter_aft.value_true - self.diameter_fore.value_true).abs() < 0.000001 { 0.0 }
+            else { lref * cma / cna };
+        return cp;
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                     UI                                     */
+    /* -------------------------------------------------------------------------- */
+    // Show workbench editor ui for section.
+    pub fn show(ui: &mut Ui, section_idx: usize, app: &mut App) {    
+        let section: &mut RocketSection = &mut app.model.sections[section_idx];
+
+        CollapsingSection::new("sectiondimensions".to_owned() + &section_idx.to_string(), "Section Dimensions").show(ui, |ui| {
+            show_unit_value_field(ui, section_idx, UnitKind::Length, "Length".to_owned(),  &mut section.length, UnitRangeSpec::TubeLength, Some(&mut section.tapered), "Tapered");
+            if !section.tapered {
+                show_unit_value_field(ui, section_idx, UnitKind::Length,"Diameter".to_owned(),  &mut section.diameter_fore, UnitRangeSpec::TubeDiameter, Some(&mut section.workbench_copy_diameter_fore), "Copy from above");
+            } else {
+                show_unit_value_field(ui, section_idx, UnitKind::Length,"Fore Diameter".to_owned(),  &mut section.diameter_fore, UnitRangeSpec::TubeDiameter, Some(&mut section.workbench_copy_diameter_fore), "Copy from above");
+                show_unit_value_field(ui, section_idx, UnitKind::Length,"Aft Diameter".to_owned(),  &mut section.diameter_aft, UnitRangeSpec::TubeDiameter, Some(&mut section.workbench_copy_diameter_aft), "Copy from above");
+                show_curve_combo(ui, &mut section.curve_profile);
+            }
+            show_unit_value_field(ui, section_idx, UnitKind::Length, "Wall Thickness".to_owned(),  &mut section.wall_thickness, UnitRangeSpec::WallThickness, None, "");
+        });
+
+        CollapsingSection::new("sectionproperties".to_owned() + &section_idx.to_string(), "Section Properties").show(ui, |ui| {
+            show_material_selector(ui, section_idx, &mut section.material, &mut section.custom_material, &app.materials);
+            show_mass_properties(ui, section_idx,  &mut section.int_mass_properties);
+            show_unit_value_label(ui, section_idx, UnitKind::Area, "Fore Area".to_owned(), &mut section.int_area_fore);
+            show_unit_value_label(ui, section_idx, UnitKind::Area, "Aft Area".to_owned(), &mut section.int_area_aft);
+            show_unit_value_label(ui, section_idx, UnitKind::Area, "Planform Area".to_owned(), &mut section.int_area_planform);
+            show_unit_value_label(ui, section_idx, UnitKind::Length, "Planform Area Centroid X".to_owned(), &mut section.int_area_planform_centroid);
+            show_unit_value_label(ui, section_idx, UnitKind::Volume, "Aerodynamic Volume".to_owned(), &mut section.int_aero_volume);
+        });
     }
 
     /* -------------------------------------------------------------------------- */
     /*                                  Graphics                                  */
     /* -------------------------------------------------------------------------- */
     // Returns vector of lines made up of Vec2's that represent this section's lines (including components)
-    pub fn draw(&self) -> Vec<Vec<Vec2>> {
+    pub fn draw(&self) -> Vec<ViewerLine> {
         // Section lines.
-        let mut paths: Vec<Vec<Vec2>> = vec![];
-        paths.push(vec![
+        const BODY_CAP_LINE_ORDER: usize = 5000;
+        const BODY_SIDE_LINE_ORDER: usize = 10000;
+        let mut paths: Vec<ViewerLine> = vec![];
+        paths.push(ViewerLine::Solid(Color32::DARK_GRAY, BODY_CAP_LINE_ORDER, vec![
             vec2(self.diameter_fore.value_true / 2.0, 0.0), 
             vec2(-self.diameter_fore.value_true / 2.0, 0.0)
-        ]);
-        paths.push(vec![
+        ]));
+        paths.push(ViewerLine::Solid(Color32::DARK_GRAY, BODY_CAP_LINE_ORDER, vec![
             vec2(self.diameter_aft.value_true / 2.0, self.length.value_true), 
             vec2(-self.diameter_aft.value_true / 2.0, self.length.value_true)
-        ]);
+        ]));
         let path_right: Vec<Vec2> = self.int_wall_points.clone().iter().map(|f| { vec2(f.0, f.1) }).collect();
         let path_left: Vec<Vec2> = self.int_wall_points.clone().iter().map(|f| { vec2(f.0 * -1.0, f.1) }).collect();
-        paths.push(path_right);
-        paths.push(path_left);
+        paths.push(ViewerLine::Solid(Color32::WHITE, BODY_SIDE_LINE_ORDER, path_right));
+        paths.push(ViewerLine::Solid(Color32::WHITE, BODY_SIDE_LINE_ORDER, path_left));
 
         // Component lines.
         for generic_component in &self.components {
@@ -229,14 +256,23 @@ impl RocketSection {
 pub enum RocketComponent {
     FinSet(RocketComponentFinSet),
     GenericMass(RocketComponentGenericMass),
-    Parachute(RocketComponentParachute),
+    MotorMount(RocketComponentMotorMount)
 }
 impl RocketComponent {
-    pub fn draw(&self, parent: &RocketSection) -> Vec<Vec<Vec2>> {
+    /* ----------------------------------- UI ----------------------------------- */
+    pub fn show(ui: &mut Ui, section_idx: usize, component_idx: usize, app: &mut App) {
+        match &app.model.sections[section_idx].components[component_idx] {
+            RocketComponent::FinSet(_) => RocketComponentFinSet::show(ui, section_idx, component_idx, app),
+            RocketComponent::GenericMass(_) => RocketComponentGenericMass::show(ui, section_idx, component_idx, app),
+            RocketComponent::MotorMount(_) => RocketComponentMotorMount::show(ui, section_idx, component_idx, app)
+        }
+    }
+    /* -------------------------------- Graphics -------------------------------- */
+    pub fn draw(&self, parent: &RocketSection) -> Vec<ViewerLine> {
         match self {
             RocketComponent::FinSet(c) => c.draw(parent),
             RocketComponent::GenericMass(c) => c.draw(parent),
-            RocketComponent::Parachute(c) => c.draw(parent),
+            RocketComponent::MotorMount(c) => c.draw(parent)
         }
     }
 }

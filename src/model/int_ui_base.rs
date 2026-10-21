@@ -1,11 +1,23 @@
 use std::{collections::HashMap, ops::{RangeInclusive}};
+use egui::{Color32, Vec2};
 use elegance::{ Checkbox, Slider, TextInput, egui::{ ComboBox, DragValue, Label, Ui } };
 use crate::model::int_units::*;
 use crate::model::int_materials::*;
 use crate::model::int_mass::*;
 use crate::model::int_curves::*;
 
-/* --------------------------------- Ranges --------------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                                   Viewer                                   */
+/* -------------------------------------------------------------------------- */
+pub enum ViewerLine {
+    // Color, Z-order (High draws on top), path of line.
+    Solid(Color32, usize, Vec<Vec2>),
+    Dashed(Color32, usize, Vec<Vec2>)
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   Ranges                                   */
+/* -------------------------------------------------------------------------- */
 // Range specification for draggable values (tube diam, tube length, motor diam, elastic/shear modulus, etc.)
 pub enum UnitRangeSpec {
     TubeDiameter,
@@ -114,7 +126,9 @@ impl UnitRangeSpec {
     }
 }
 
-/* ------------------------------ Unit Selector ----------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                                     UI                                     */
+/* -------------------------------------------------------------------------- */
 // Dropdown for selecting value unit.
 // Returns true on change.
 pub fn show_unit_selector(ui: &mut Ui, id_source: usize, unit_kind: UnitKind, field_label: &str, value: &mut UnitType) -> bool {
@@ -159,8 +173,6 @@ pub fn show_unit_selector(ui: &mut Ui, id_source: usize, unit_kind: UnitKind, fi
     });
     return previous != *value;
 }
-
-/* ----------------------------- Value Displays ----------------------------- */
 // Duo of numeric value and slider within given range.
 pub fn show_range_value_field(ui: &mut Ui, value: &mut f32, range: RangeInclusive<f32>, label: String, suffix: String) {
     let width: f32 = 300.0;
@@ -223,8 +235,6 @@ pub fn show_unit_value_label(
         }
     });
 }
-
-/* -------------------------------- Materials ------------------------------- */
 // Dropdown for selecting material and boxes for defining a custom one for that part.
 pub fn show_material_selector(ui: &mut Ui, id_source: usize, material_value: &mut Material, custom_material_flag: &mut bool, materials: &HashMap<String, Material>) {
     // Horizontal bar for material dropdown or custom material name.
@@ -252,8 +262,7 @@ pub fn show_material_selector(ui: &mut Ui, id_source: usize, material_value: &mu
         show_unit_value_field(ui, id_source, UnitKind::Pressure, "Shear Modulus".to_string(), &mut material_value.modulus_shear, UnitRangeSpec::ModulusShear, None, "");
     }
 }
-
-/* ----------------------------- Mass Properties ---------------------------- */
+// Show labels that descripe given mass properties object.
 pub fn show_mass_properties(ui: &mut Ui, id_source: usize, mass_properties: &mut MassProperties) {
     show_unit_value_label(ui, id_source, UnitKind::Volume, "Material Volume".to_owned(), &mut mass_properties.wall_volume);
     show_unit_value_label(ui, id_source, UnitKind::Mass, "Mass".to_owned(), &mut mass_properties.mass);
@@ -261,8 +270,6 @@ pub fn show_mass_properties(ui: &mut Ui, id_source: usize, mass_properties: &mut
     show_unit_value_label(ui, id_source, UnitKind::Inertia, "Irot".to_owned(), &mut mass_properties.i_rotational);
     show_unit_value_label(ui, id_source, UnitKind::Inertia, "Ilong".to_owned(), &mut mass_properties.i_longitudinal);
 }
-
-/* --------------------------------- Curves --------------------------------- */
 // Curve selector combo box.
 pub fn show_curve_combo(ui: &mut Ui, curve_spec: &mut CurveProfile) {
     ui.horizontal(|ui| {

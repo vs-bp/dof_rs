@@ -1,22 +1,27 @@
 use std::io::{Read, Write};
 
-use elegance::egui::{ Ui };
-use crate::*;
+use elegance::egui::{ Ui, ComboBox };
+use crate::{model::{component_generic_mass::RocketComponentGenericMass, component_motor_mount::RocketComponentMotorMount}, *};
 
 // Show heirarchy viewer and selector for all parts.
 pub fn show(ui: &mut Ui, app: &mut App) {
     // Show save/load file menu.
     ui.horizontal(|ui| {
+        ui.label("Model");
         if ui.button("Save").clicked() { 
-            let file_path = rfd::FileDialog::new().add_filter("dof_rs Rocket", &["drf"]).save_file().unwrap(); 
-            let mut file: std::fs::File = std::fs::File::create_new(file_path).unwrap();
-            file.write(&app.model.as_bytes()).unwrap(); 
+            let file_path = rfd::FileDialog::new().add_filter("dof_rs Rocket", &["drf"]).save_file(); 
+            if file_path.is_some() {
+                let mut file: std::fs::File = std::fs::File::create(file_path.unwrap()).unwrap();
+                file.write(&app.model.as_bytes()).unwrap(); 
+            }
         }
         if ui.button("Load").clicked() { 
-            let file_path = rfd::FileDialog::new().add_filter("dof_rs Rocket", &["drf"]).pick_file().unwrap();
-            let file: std::fs::File = std::fs::File::open(file_path).unwrap();
-            app.model = RocketModel::from_bytes(file.bytes().map(|f| f.unwrap()).collect());
-            app.workbench_selection = WorkbenchSelection::None;
+            let file_path = rfd::FileDialog::new().add_filter("dof_rs Rocket", &["drf"]).pick_file();
+            if file_path.is_some() {
+                let file: std::fs::File = std::fs::File::open(file_path.unwrap()).unwrap();
+                app.model = RocketModel::from_bytes(file.bytes().map(|f| f.unwrap()).collect());
+                app.workbench_selection = WorkbenchSelection::None;
+            }
         }
     });
 
@@ -50,8 +55,19 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                 if ui.button("x").clicked() { action = WorkbenchAction::DeleteSection(s); }
             });
             ui.horizontal(|ui| {
-                ui.label("Component");
-                if ui.button("+").clicked() { app.model.sections[s].components.push(RocketComponent::FinSet(RocketComponentFinSet::default())); }
+                ui.label("Component");              
+                let mut addition_type: usize = 0;
+                ComboBox::new("modeltreeaddcomponent", "").width(20.0).selected_text("+").show_ui(ui, |ui| {
+                    ui.selectable_value(&mut addition_type, 1, "Add Fin Set");
+                    ui.selectable_value(&mut addition_type,2, "Add Generic Mass");
+                    ui.selectable_value(&mut addition_type,3, "Add Motor Mount");
+                });
+                match addition_type {
+                    1 => { app.model.sections[s].components.push(RocketComponent::FinSet(RocketComponentFinSet::default())); },
+                    2 => { app.model.sections[s].components.push(RocketComponent::GenericMass(RocketComponentGenericMass::default())); },
+                    3 => { app.model.sections[s].components.push(RocketComponent::MotorMount(RocketComponentMotorMount::default())); },
+                    _ => {}
+                }
                 if ui.button("↑").clicked() {}
                 if ui.button("↓").clicked() {}
                 if ui.button("x").clicked() {}
@@ -67,7 +83,18 @@ pub fn show(ui: &mut Ui, app: &mut App) {
             });
             ui.horizontal(|ui| {
                 ui.label("Component");
-                if ui.button("+").clicked() { app.model.sections[s].components.push(RocketComponent::FinSet(RocketComponentFinSet::default())); }
+                let mut addition_type: usize = 0;
+                ComboBox::new("modeltreeaddcomponent", "").width(20.0).selected_text("+").show_ui(ui, |ui| {
+                    ui.selectable_value(&mut addition_type, 1, "Add Fin Set");
+                    ui.selectable_value(&mut addition_type,2, "Add Generic Mass");
+                    ui.selectable_value(&mut addition_type,3, "Add Motor Mount");
+                });
+                match addition_type {
+                    1 => { app.model.sections[s].components.push(RocketComponent::FinSet(RocketComponentFinSet::default())); },
+                    2 => { app.model.sections[s].components.push(RocketComponent::GenericMass(RocketComponentGenericMass::default())); },
+                    3 => { app.model.sections[s].components.push(RocketComponent::MotorMount(RocketComponentMotorMount::default())); },
+                    _ => {}
+                }
                 if ui.button("↑").clicked() { if c > 0 { action = WorkbenchAction::SwapComponent(s, c, c-1); }}
                 if ui.button("↓").clicked() { if c < app.model.sections.len() - 1 { action = WorkbenchAction::SwapComponent(s, c, c-1); }}
                 if ui.button("x").clicked() { action = WorkbenchAction::DeleteComponent(s, c); }
@@ -124,7 +151,7 @@ pub fn show(ui: &mut Ui, app: &mut App) {
                     let text: &str = match generic_component {
                         RocketComponent::FinSet(_) => "Fin Set",
                         RocketComponent::GenericMass(_) => "Generic Mass",
-                        RocketComponent::Parachute(_) => "Parachute"
+                        RocketComponent::MotorMount(_) => "Motor Mount"
                     };
                     let checked:bool = match app.workbench_selection {
                         WorkbenchSelection::Component(s, c) => { (s == section_idx) && (c == component_idx) },

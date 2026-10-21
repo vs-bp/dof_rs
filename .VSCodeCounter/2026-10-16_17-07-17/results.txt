@@ -1,0 +1,55 @@
+Date : 2026-10-16 17:07:17
+Directory : c:\Users\kcast\OneDrive\Desktop\Code\dof_rs
+Total : 24 files,  6196 codes, 514 comments, 676 blanks, all 7386 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| TOML     |          2 |      4,294 |          2 |        456 |      4,752 |
+| Rust     |         22 |      1,902 |        512 |        220 |      2,634 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++---------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                            | files      | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                               |         24 |      6,196 |        514 |        676 |      7,386 |
+| . (Files)                                                                       |          2 |      4,294 |          2 |        456 |      4,752 |
+| src                                                                             |         22 |      1,902 |        512 |        220 |      2,634 |
+| src (Files)                                                                     |          1 |         58 |          5 |          6 |         69 |
+| src\editor                                                                      |          5 |        256 |         39 |         23 |        318 |
+| src\model                                                                       |         11 |      1,150 |        246 |        106 |      1,502 |
+| src\simulator                                                                   |          5 |        438 |        222 |         85 |        745 |
++---------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++---------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                        | language | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\Cargo.lock                          | TOML     |      4,278 |          2 |        454 |      4,734 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\Cargo.toml                          | TOML     |         16 |          0 |          2 |         18 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\editor\mod.rs                   | Rust     |          4 |          0 |          0 |          4 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\editor\model_analyzer.rs        | Rust     |         27 |          0 |          3 |         30 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\editor\model_tree.rs            | Rust     |        147 |         13 |          6 |        166 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\editor\model_viewer.rs          | Rust     |         55 |         10 |          7 |         72 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\editor\model_workbench.rs       | Rust     |         23 |         16 |          7 |         46 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\main.rs                         | Rust     |         58 |          5 |          6 |         69 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\component_fin_set.rs      | Rust     |        117 |         36 |         15 |        168 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\component_generic_mass.rs | Rust     |         62 |         22 |          7 |         91 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\component_motor_mount.rs  | Rust     |         88 |         25 |         10 |        123 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\int_curves.rs             | Rust     |         64 |         23 |         11 |         98 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\int_mass.rs               | Rust     |         50 |          6 |          3 |         59 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\int_materials.rs          | Rust     |         27 |          1 |          2 |         30 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\int_motors.rs             | Rust     |         53 |          7 |          4 |         64 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\int_section.rs            | Rust     |        199 |         50 |         29 |        278 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\int_ui_base.rs            | Rust     |        275 |         31 |          8 |        314 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\int_units.rs              | Rust     |        114 |         23 |          5 |        142 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\model\mod.rs                    | Rust     |        101 |         22 |         12 |        135 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\simulator\plot1.rs              | Rust     |         15 |         35 |         12 |         62 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\simulator\plot2.rs              | Rust     |         15 |         38 |         14 |         67 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\simulator\plot3.rs              | Rust     |         15 |         37 |         13 |         65 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\simulator\plot4.rs              | Rust     |         16 |         46 |         17 |         79 |
+| c:\Users\kcast\OneDrive\Desktop\Code\dof_rs\src\simulator\simulator.rs          | Rust     |        377 |         66 |         29 |        472 |
+| Total                                                                           |          |      6,196 |        514 |        676 |      7,386 |
++---------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

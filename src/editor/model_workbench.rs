@@ -1,7 +1,5 @@
 use elegance::egui::{ Ui };
 use crate::*;
-use crate::editor::ui_section::*;
-use crate::editor::ui_component::*;
 
 /* -------------------------------------------------------------------------- */
 /*                                   Update                                   */
@@ -39,8 +37,8 @@ pub fn show(ui: &mut Ui, app: &mut App) {
     // Show edit UI for given section.
     match app.workbench_selection {
         WorkbenchSelection::None => {},
-        WorkbenchSelection::Section(s) => show_section(ui, s, app),
-        WorkbenchSelection::Component(s, c) => show_component(ui, s, c, app)
+        WorkbenchSelection::Section(s) => RocketSection::show(ui, s, app),
+        WorkbenchSelection::Component(s, c) => RocketComponent::show(ui, s, c, app)
     };
 
     // Model internals update which gets cascaded to all sections and components.

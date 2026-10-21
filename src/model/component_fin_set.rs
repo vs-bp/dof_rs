@@ -1,8 +1,3 @@
-use std::f32;
-
-use byteable::Byteable;
-use egui::{Vec2, vec2};
-
 /* -------------------------------------------------------------------------- */
 /*                                Fin Component                               */
 /* -------------------------------------------------------------------------- */
@@ -10,6 +5,14 @@ use crate::model::int_section::*;
 use crate::model::int_units::*;
 use crate::model::int_materials::*;
 use crate::model::int_mass::*;
+use crate::model::int_ui_base::*;
+use std::f32;
+use byteable::Byteable;
+use egui::Color32;
+use egui::Ui;
+use egui::{Vec2, vec2};
+use elegance::CollapsingSection;
+use crate::App;
 
 // Fins that attach to airframe sections as a component.
 #[derive(Byteable, Debug)]
@@ -25,7 +28,8 @@ pub struct RocketComponentFinSet {
     pub material: Material, // TODO.
     pub int_mass_properties: MassProperties // TODO.
 }
-impl RocketComponentFinSet {    /* -------------------------------------------------------------------------- */
+impl RocketComponentFinSet {    
+    /* -------------------------------------------------------------------------- */
     /*                               Internal Values                              */
     /* -------------------------------------------------------------------------- */
     // Recalculates internal mass properties.
@@ -53,7 +57,9 @@ impl RocketComponentFinSet {    /* ---------------------------------------------
     /* -------------------------------------------------------------------------- */
     /*                                Aerodynamics                                */
     /* -------------------------------------------------------------------------- */
-    fn cna_subsonic(&self, _alpha: f32, mach: f32, aref: f32, _lref: f32, body_radius: f32) -> f32 {
+    fn cna_subsonic(&self, _alpha: f32, mach: f32, aref: f32, _lref: f32, parent: &RocketSection) -> f32 {
+        let body_radius: f32 = parent.diameter_aft.value_true / 2.0;
+
         // Fin shape variables.
         let span: f32 = self.height.value_true;
         let root: f32 = self.chord_root.value_true;
@@ -90,19 +96,44 @@ impl RocketComponentFinSet {    /* ---------------------------------------------
         return cnatb;
 
     }
-    fn cna_supersonic(&self, alpha: f32, mach: f32, aref: f32, _lref: f32, body_radius: f32) -> f32 { 0.0 } // TODO.
-    pub fn cna(&self, alpha: f32, mach: f32, aref: f32, lref: f32, body_radius: f32) -> f32 {
-        if mach < 1.0 { self.cna_subsonic(alpha, mach, aref, lref, body_radius) }
-        else { self.cna_supersonic(alpha, mach, aref, lref, body_radius) }
+    fn cna_supersonic(&self, alpha: f32, mach: f32, aref: f32, _lref: f32, parent: &RocketSection) -> f32 { 0.0 } // TODO.
+    pub fn cna(&self, alpha: f32, mach: f32, aref: f32, lref: f32, parent: &RocketSection) -> f32 {
+        if mach < 1.0 { self.cna_subsonic(alpha, mach, aref, lref, parent) }
+        else { self.cna_supersonic(alpha, mach, aref, lref, parent) }
     }
-    // TODO CP.
+    pub fn cp(&self, alpha: f32, mach: f32, aref: f32, lref: f32, parent: &RocketSection) -> f32 {
+        // TODO CP above mach 0.5 not accurate to this.
+        let cr: f32 = self.chord_root.value_true;
+        let ct: f32 = self.chord_tip.value_true;
+        let xt: f32 = self.sweep.value_true;
+        let xf: f32 = ((xt / 3.0) * (cr + 2.0*ct) / (cr + ct)) + ((1.0 / 6.0) * (cr*cr + ct*ct + cr*ct) / (cr + ct));
+        return parent.length.value_true - self.chord_root.value_true - self.position_offset.value_true + xf;
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                                     UI                                     */
+    /* -------------------------------------------------------------------------- */
+    // Shows editable fields and mass properties. (Called on selection in model tree)
+    pub fn show(ui: &mut Ui, section_idx: usize, component_idx: usize, app: &mut App) {
+        let component: &mut RocketComponentFinSet = app.model.sections[section_idx].components[component_idx].as_fin_set_mut().unwrap();
+        CollapsingSection::new("componentdimensions".to_owned() + &(section_idx*1000 + component_idx).to_string(), "Component Dimensions").show(ui, |ui| {
+            show_unit_value_field(ui, section_idx*1000 + component_idx, UnitKind::Length, "Root Chord".to_owned(),  &mut component.chord_root, UnitRangeSpec::FinRoot, None, "");
+            show_unit_value_field(ui, section_idx*1000 + component_idx, UnitKind::Length, "Tip Chord".to_owned(),  &mut component.chord_tip, UnitRangeSpec::FinTip, None, "");
+            show_unit_value_field(ui, section_idx*1000 + component_idx, UnitKind::Length, "Height".to_owned(),  &mut component.height, UnitRangeSpec::FinHeight, None, "");
+            show_unit_value_field(ui, section_idx*1000 + component_idx, UnitKind::Length, "Sweep".to_owned(),  &mut component.sweep, UnitRangeSpec::FinSweep, None, "");
+            show_unit_value_field(ui, section_idx*1000 + component_idx, UnitKind::Length, "Offset".to_owned(),  &mut component.position_offset, UnitRangeSpec::FinOffset, None, "");
+        });
+        CollapsingSection::new("componentmassproperties".to_owned() + &(section_idx*1000 + component_idx).to_string(), "Component Properties").show(ui, |ui| {
+            show_mass_properties(ui, section_idx*1000 + component_idx, &mut component.int_mass_properties);
+        });
+    }
 
     /* -------------------------------------------------------------------------- */
     /*                                  Graphics                                  */
     /* -------------------------------------------------------------------------- */
     // Returns vector of lines made up of Vec2's that represent this component's lines.
-    pub fn draw(&self, parent: &RocketSection) -> Vec<Vec<Vec2>> {
-        let mut paths: Vec<Vec<Vec2>> = vec![];
+    pub fn draw(&self, parent: &RocketSection) -> Vec<ViewerLine> {
+        let mut paths: Vec<ViewerLine> = vec![];
 
         // Loop through all fins in the set.
         for i in 0..self.count {
@@ -129,7 +160,8 @@ impl RocketComponentFinSet {    /* ---------------------------------------------
             c_tip_high.x *= angle.cos();
 
             // Add to output.
-            paths.push(vec![c_root_low, c_tip_low, c_tip_high, c_root_high]);
+            const FIN_LINE_ORDER: usize = 12000;
+            paths.push(ViewerLine::Solid(Color32::WHITE, FIN_LINE_ORDER, vec![c_root_low, c_tip_low, c_tip_high, c_root_high]));
         }
         return paths;
     }
